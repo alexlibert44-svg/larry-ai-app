@@ -1,3 +1,5 @@
+import { ImageSourcePropType } from "react-native";
+
 export type CharacterId = "larry" | "sensei" | "dr-neo" | "hassan";
 
 export interface Character {
@@ -7,7 +9,7 @@ export interface Character {
   tagline: string;
   color: string;
   bgColor: string;
-  image: ReturnType<typeof require>;
+  image: ImageSourcePropType;
   systemPrompt: string;
 }
 

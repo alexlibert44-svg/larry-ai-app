@@ -2,6 +2,7 @@ import { Feather } from "@expo/vector-icons";
 import { useRouter } from "expo-router";
 import React from "react";
 import {
+  Image,
   Platform,
   Pressable,
   ScrollView,
@@ -27,7 +28,17 @@ export default function TodayScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
   const router = useRouter();
-  const { tasks, xp, streak, stage, activeCharacter, setActiveCharacter } = useApp();
+  const {
+    tasks,
+    xp,
+    stage,
+    activeCharacter,
+    setActiveCharacter,
+    isDarkMode,
+    setDarkMode,
+    userName,
+    userAvatar,
+  } = useApp();
   const character = getCharacter(activeCharacter);
 
   const todayTasks = tasks.filter((t) => {
@@ -39,6 +50,8 @@ export default function TodayScreen() {
   const topPad = Platform.OS === "web" ? 67 : insets.top;
   const bottomPad = Platform.OS === "web" ? 34 : 0;
 
+  const displayName = userName.trim() || "User";
+
   return (
     <ScrollView
       style={[styles.container, { backgroundColor: colors.background }]}
@@ -49,23 +62,34 @@ export default function TodayScreen() {
       <View style={styles.header}>
         <View style={styles.profileRow}>
           <View style={[styles.avatar, { backgroundColor: character.color + "33", borderColor: character.color }]}>
-            <Feather name="user" size={20} color={character.color} />
+            {userAvatar ? (
+              <Image source={{ uri: userAvatar }} style={styles.avatarImage} />
+            ) : (
+              <Feather name="user" size={20} color={character.color} />
+            )}
           </View>
           <View>
             <Text style={[styles.greeting, { color: colors.mutedForeground }]}>
               {getGreeting()}
             </Text>
             <Text style={[styles.appName, { color: colors.foreground }]}>
-              Larry User
+              {displayName}
             </Text>
           </View>
         </View>
-        <View style={styles.streakBadge}>
-          <Feather name="zap" size={14} color="#F59E0B" />
-          <Text style={[styles.streakText, { color: colors.foreground }]}>
-            {streak}
-          </Text>
-        </View>
+
+        {/* Sun / Moon theme toggle */}
+        <Pressable
+          style={[styles.themeBtn, { backgroundColor: colors.card, borderColor: colors.border }]}
+          onPress={() => setDarkMode(!isDarkMode)}
+          hitSlop={8}
+        >
+          <Feather
+            name={isDarkMode ? "sun" : "moon"}
+            size={18}
+            color={isDarkMode ? "#F59E0B" : "#8B5CF6"}
+          />
+        </Pressable>
       </View>
 
       {/* Stage Banner */}
@@ -190,19 +214,23 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
     alignItems: "center",
     justifyContent: "center",
+    overflow: "hidden",
+  },
+  avatarImage: {
+    width: "100%",
+    height: "100%",
+    borderRadius: 22,
   },
   greeting: { fontSize: 12, fontWeight: "500", marginBottom: 1 },
   appName: { fontSize: 17, fontWeight: "700" },
-  streakBadge: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    backgroundColor: "#F59E0B22",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+  themeBtn: {
+    width: 40,
+    height: 40,
     borderRadius: 20,
+    borderWidth: 1,
+    alignItems: "center",
+    justifyContent: "center",
   },
-  streakText: { fontSize: 15, fontWeight: "700" },
   stageBanner: {
     marginHorizontal: 20,
     marginBottom: 24,

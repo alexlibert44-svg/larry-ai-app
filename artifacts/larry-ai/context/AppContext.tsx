@@ -33,6 +33,9 @@ interface AppState {
   stage: number;
   activeCharacter: CharacterId;
   lastActiveDate: string | null;
+  isDarkMode: boolean;
+  userName: string;
+  userAvatar: string | null;
 }
 
 interface AppContextType extends AppState {
@@ -43,9 +46,12 @@ interface AppContextType extends AppState {
   checkHabit: (id: string) => void;
   deleteHabit: (id: string) => void;
   setActiveCharacter: (id: CharacterId) => void;
+  setDarkMode: (value: boolean) => void;
+  setUserName: (name: string) => void;
+  setUserAvatar: (uri: string | null) => void;
 }
 
-const AppContext = createContext<AppContextType | null>(null);
+export const AppContext = createContext<AppContextType | null>(null);
 
 const STORAGE_KEY = "@larryai_state";
 
@@ -57,6 +63,9 @@ const defaultState: AppState = {
   stage: 1,
   activeCharacter: "larry",
   lastActiveDate: null,
+  isDarkMode: true,
+  userName: "",
+  userAvatar: null,
 };
 
 function uid(): string {
@@ -87,7 +96,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
               streak = 0;
             }
           }
-          setState({ ...parsed, streak, lastActiveDate: today });
+          setState({
+            ...defaultState,
+            ...parsed,
+            streak,
+            lastActiveDate: today,
+          });
         } catch {
           setState({ ...defaultState, lastActiveDate: todayString() });
         }
@@ -251,6 +265,39 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     [save]
   );
 
+  const setDarkMode = useCallback(
+    (value: boolean) => {
+      setState((prev) => {
+        const next: AppState = { ...prev, isDarkMode: value };
+        save(next);
+        return next;
+      });
+    },
+    [save]
+  );
+
+  const setUserName = useCallback(
+    (name: string) => {
+      setState((prev) => {
+        const next: AppState = { ...prev, userName: name };
+        save(next);
+        return next;
+      });
+    },
+    [save]
+  );
+
+  const setUserAvatar = useCallback(
+    (uri: string | null) => {
+      setState((prev) => {
+        const next: AppState = { ...prev, userAvatar: uri };
+        save(next);
+        return next;
+      });
+    },
+    [save]
+  );
+
   if (!loaded) return null;
 
   return (
@@ -264,6 +311,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         checkHabit,
         deleteHabit,
         setActiveCharacter,
+        setDarkMode,
+        setUserName,
+        setUserAvatar,
       }}
     >
       {children}
