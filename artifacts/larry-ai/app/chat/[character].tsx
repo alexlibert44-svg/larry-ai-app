@@ -1,0 +1,261 @@
+import { Feather } from "@expo/vector-icons";
+import * as Haptics from "expo-haptics";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { fetch } from "expo/fetch";
+import React, { useCallback, useRef, useState } from "react";
+import {
+  FlatList,
+  Image,
+  Platform,
+  Pressable,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
+import { KeyboardAvoidingView } from "react-native-keyboard-controller";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { getCharacter } from "@/constants/characters";
+import { useColors } from "@/hooks/useColors";
+
+interface Message {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+}
+
+function uid() {
+  return Date.now().toString() + Math.random().toString(36).substring(2, 9);
+}
+
+const BASE_URL = `https://${process.env.EXPO_PUBLIC_DOMAIN}`;
+
+export default function ChatScreen() {
+  const colors = useColors();
+  const insets = useSafeAreaInsets();
+  const router = useRouter();
+  const { character: charId } = useLocalSearchParams<{ character: string }>();
+  const character = getCharacter(charId ?? "larry");
+
+  const [messages, setMessages] = useState<Message[]>([
+    {
+      id: "intro",
+      role: "assistant",
+      content: `${getIntro(character.id)}`,
+    },
+  ]);
+  const [input, setInput] = useState("");
+  const [loading, setLoading] = useState(false);
+  const flatRef = useRef<FlatList>(null);
+
+  const sendMessage = useCallback(async () => {
+    const text = input.trim();
+    if (!text || loading) return;
+    setInput("");
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+
+    const userMsg: Message = { id: uid(), role: "user", content: text };
+    const current = [...messages, userMsg];
+    setMessages(current);
+
+    setLoading(true);
+    try {
+      const payload = {
+        characterId: character.id,
+        messages: current
+          .filter((m) => m.id !== "intro")
+          .concat(current[0].id === "intro" ? [] : [])
+          .map((m) => ({ role: m.role, content: m.content })),
+      };
+
+      const res = await fetch(`${BASE_URL}/api/chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) throw new Error("Request failed");
+      const data = (await res.json()) as { reply: string };
+      const assistantMsg: Message = { id: uid(), role: "assistant", content: data.reply };
+      setMessages((prev) => [...prev, assistantMsg]);
+    } catch {
+      const errMsg: Message = {
+        id: uid(),
+        role: "assistant",
+        content: "I'm having trouble connecting right now. Please try again.",
+      };
+      setMessages((prev) => [...prev, errMsg]);
+    } finally {
+      setLoading(false);
+    }
+  }, [input, loading, messages, character.id]);
+
+  const topPad = Platform.OS === "web" ? 67 : insets.top;
+  const bottomPad = Platform.OS === "web" ? 34 + insets.bottom : insets.bottom;
+
+  return (
+    <View style={[styles.container, { backgroundColor: colors.background }]}>
+      {/* Header */}
+      <View style={[styles.header, { paddingTop: topPad + 10, backgroundColor: character.bgColor, borderBottomColor: character.color + "44" }]}>
+        <Pressable onPress={() => router.back()} style={styles.backBtn} hitSlop={8}>
+          <Feather name="arrow-left" size={22} color={colors.foreground} />
+        </Pressable>
+        <Image source={character.image} style={styles.headerAvatar} />
+        <View style={styles.headerInfo}>
+          <Text style={[styles.headerName, { color: colors.foreground }]}>{character.name}</Text>
+          <Text style={[styles.headerRole, { color: character.color }]}>{character.role}</Text>
+        </View>
+        <View style={[styles.onlineDot, { backgroundColor: character.color }]} />
+      </View>
+
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior="padding"
+        keyboardVerticalOffset={0}
+      >
+        <FlatList
+          ref={flatRef}
+          data={[...messages].reverse()}
+          keyExtractor={(m) => m.id}
+          inverted
+          contentContainerStyle={{ padding: 16, gap: 12, paddingBottom: 8 }}
+          showsVerticalScrollIndicator={false}
+          renderItem={({ item }) => (
+            <MessageBubble msg={item} character={character} colors={colors} />
+          )}
+          ListHeaderComponent={
+            loading ? (
+              <View style={[styles.typingBubble, { backgroundColor: character.bgColor, borderColor: character.color + "44" }]}>
+                <Text style={[styles.typingText, { color: character.color }]}>
+                  {character.name} is thinking...
+                </Text>
+              </View>
+            ) : null
+          }
+        />
+
+        {/* Input */}
+        <View style={[styles.inputRow, { backgroundColor: colors.card, borderTopColor: colors.border, paddingBottom: bottomPad + 8 }]}>
+          <TextInput
+            style={[styles.textInput, { backgroundColor: colors.background, color: colors.foreground, borderColor: colors.border }]}
+            placeholder={`Message ${character.name}...`}
+            placeholderTextColor={colors.mutedForeground}
+            value={input}
+            onChangeText={setInput}
+            multiline
+            returnKeyType="send"
+            onSubmitEditing={sendMessage}
+            blurOnSubmit={false}
+          />
+          <Pressable
+            style={[styles.sendBtn, { backgroundColor: input.trim() ? character.color : colors.muted }]}
+            onPress={sendMessage}
+            disabled={!input.trim() || loading}
+          >
+            <Feather name="send" size={18} color={input.trim() ? "#fff" : colors.mutedForeground} />
+          </Pressable>
+        </View>
+      </KeyboardAvoidingView>
+    </View>
+  );
+}
+
+function MessageBubble({
+  msg,
+  character,
+  colors,
+}: {
+  msg: Message;
+  character: ReturnType<typeof getCharacter>;
+  colors: ReturnType<typeof import("@/hooks/useColors").useColors>;
+}) {
+  const isUser = msg.role === "user";
+  return (
+    <View style={[styles.msgRow, isUser && styles.msgRowUser]}>
+      {!isUser && (
+        <Image source={character.image} style={styles.msgAvatar} />
+      )}
+      <View
+        style={[
+          styles.bubble,
+          isUser
+            ? [styles.userBubble, { backgroundColor: character.color }]
+            : [styles.aiBubble, { backgroundColor: character.bgColor, borderColor: character.color + "44" }],
+        ]}
+      >
+        <Text style={[styles.bubbleText, { color: isUser ? "#fff" : colors.foreground }]}>
+          {msg.content}
+        </Text>
+      </View>
+    </View>
+  );
+}
+
+function getIntro(id: string): string {
+  const intros: Record<string, string> = {
+    larry: "Ready to get to work? Tell me what you're trying to accomplish today. Let's cut through the noise and focus on what actually moves the needle.",
+    sensei: "Welcome. The path to wisdom begins with a single question. What would you like to explore or understand better about yourself today?",
+    "dr-neo": "Interesting that you reached out. Every habit, every pattern in your behavior has a cause. What pattern are you trying to understand or change?",
+    hassan: "Let's go! Your body is your first tool for changing your mind. What brings you here — are you looking for energy, movement, or a way to replace a bad habit with something physical?",
+  };
+  return intros[id] ?? intros.larry;
+}
+
+const styles = StyleSheet.create({
+  container: { flex: 1 },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingBottom: 14,
+    borderBottomWidth: 1,
+    gap: 12,
+  },
+  backBtn: { padding: 4 },
+  headerAvatar: { width: 38, height: 38, borderRadius: 19 },
+  headerInfo: { flex: 1 },
+  headerName: { fontSize: 16, fontWeight: "700" },
+  headerRole: { fontSize: 12, fontWeight: "500" },
+  onlineDot: { width: 8, height: 8, borderRadius: 4 },
+  msgRow: { flexDirection: "row", gap: 8, alignItems: "flex-end" },
+  msgRowUser: { flexDirection: "row-reverse" },
+  msgAvatar: { width: 28, height: 28, borderRadius: 14 },
+  bubble: { maxWidth: "78%", borderRadius: 16, padding: 12 },
+  userBubble: { borderRadius: 16, borderBottomRightRadius: 4 },
+  aiBubble: { borderRadius: 16, borderBottomLeftRadius: 4, borderWidth: 1 },
+  bubbleText: { fontSize: 15, lineHeight: 22 },
+  typingBubble: {
+    alignSelf: "flex-start",
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 16,
+    borderWidth: 1,
+    marginBottom: 8,
+  },
+  typingText: { fontSize: 13, fontStyle: "italic" },
+  inputRow: {
+    flexDirection: "row",
+    gap: 10,
+    paddingHorizontal: 14,
+    paddingTop: 10,
+    borderTopWidth: 1,
+    alignItems: "flex-end",
+  },
+  textInput: {
+    flex: 1,
+    borderRadius: 20,
+    borderWidth: 1,
+    paddingHorizontal: 16,
+    paddingTop: 10,
+    paddingBottom: 10,
+    fontSize: 15,
+    maxHeight: 120,
+  },
+  sendBtn: {
+    width: 42,
+    height: 42,
+    borderRadius: 21,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+});

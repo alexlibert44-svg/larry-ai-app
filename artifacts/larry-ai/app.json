@@ -6,17 +6,19 @@
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "larry-ai",
-    "userInterfaceStyle": "automatic",
+    "userInterfaceStyle": "dark",
     "newArchEnabled": true,
     "splash": {
       "image": "./assets/images/icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#080811"
     },
     "ios": {
       "supportsTablet": false
     },
-    "android": {},
+    "android": {
+      "backgroundColor": "#080811"
+    },
     "web": {
       "favicon": "./assets/images/icon.png"
     },

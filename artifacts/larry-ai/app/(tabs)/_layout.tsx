@@ -3,22 +3,29 @@ import { isLiquidGlassAvailable } from "expo-glass-effect";
 import { Tabs } from "expo-router";
 import { Icon, Label, NativeTabs } from "expo-router/unstable-native-tabs";
 import { SymbolView } from "expo-symbols";
-import { Feather } from "@expo/vector-icons";
+import { Feather, Ionicons } from "@expo/vector-icons";
 import React from "react";
 import { Platform, StyleSheet, View, useColorScheme } from "react-native";
-
 import { useColors } from "@/hooks/useColors";
 
-// IMPORTANT: iOS 26 uses NativeTabs for native tabs with liquid glass support.
-// NativeTabs intentionally does NOT use custom design tokens — liquid glass
-// is a system-level appearance provided by iOS and cannot be overridden.
-// Custom brand colors are applied only on the ClassicTabLayout path (older iOS / Android / web).
 function NativeTabLayout() {
   return (
     <NativeTabs>
       <NativeTabs.Trigger name="index">
         <Icon sf={{ default: "house", selected: "house.fill" }} />
-        <Label>Home</Label>
+        <Label>Today</Label>
+      </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="tasks">
+        <Icon sf={{ default: "checklist", selected: "checklist" }} />
+        <Label>Missions</Label>
+      </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="characters">
+        <Icon sf={{ default: "person.3", selected: "person.3.fill" }} />
+        <Label>Team</Label>
+      </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="progress">
+        <Icon sf={{ default: "chart.bar", selected: "chart.bar.fill" }} />
+        <Label>Stats</Label>
       </NativeTabs.Trigger>
     </NativeTabs>
   );
@@ -36,41 +43,77 @@ function ClassicTabLayout() {
       screenOptions={{
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.mutedForeground,
-        headerShown: true,
+        headerShown: false,
         tabBarStyle: {
           position: "absolute",
-          backgroundColor: isIOS ? "transparent" : colors.background,
-          borderTopWidth: isWeb ? 1 : 0,
+          backgroundColor: isIOS ? "transparent" : colors.card,
+          borderTopWidth: 1,
           borderTopColor: colors.border,
           elevation: 0,
-          ...(isWeb ? { height: 84 } : {}),
+          height: isWeb ? 84 : 60,
         },
         tabBarBackground: () =>
           isIOS ? (
             <BlurView
               intensity={100}
-              tint={isDark ? "dark" : "light"}
+              tint="dark"
               style={StyleSheet.absoluteFill}
             />
-          ) : isWeb ? (
-            <View
-              style={[
-                StyleSheet.absoluteFill,
-                { backgroundColor: colors.background },
-              ]}
-            />
-          ) : null,
+          ) : (
+            <View style={[StyleSheet.absoluteFill, { backgroundColor: colors.card }]} />
+          ),
+        tabBarLabelStyle: {
+          fontSize: 11,
+          fontWeight: "600",
+          marginBottom: 2,
+        },
       }}
     >
       <Tabs.Screen
         name="index"
         options={{
-          title: "Home",
+          title: "Today",
           tabBarIcon: ({ color }) =>
             isIOS ? (
-              <SymbolView name="house" tintColor={color} size={24} />
+              <SymbolView name="house" tintColor={color} size={22} />
             ) : (
-              <Feather name="home" size={22} color={color} />
+              <Feather name="home" size={20} color={color} />
+            ),
+        }}
+      />
+      <Tabs.Screen
+        name="tasks"
+        options={{
+          title: "Missions",
+          tabBarIcon: ({ color }) =>
+            isIOS ? (
+              <SymbolView name="checklist" tintColor={color} size={22} />
+            ) : (
+              <Feather name="check-square" size={20} color={color} />
+            ),
+        }}
+      />
+      <Tabs.Screen
+        name="characters"
+        options={{
+          title: "Team",
+          tabBarIcon: ({ color }) =>
+            isIOS ? (
+              <SymbolView name="person.3" tintColor={color} size={22} />
+            ) : (
+              <Ionicons name="people-outline" size={22} color={color} />
+            ),
+        }}
+      />
+      <Tabs.Screen
+        name="progress"
+        options={{
+          title: "Stats",
+          tabBarIcon: ({ color }) =>
+            isIOS ? (
+              <SymbolView name="chart.bar" tintColor={color} size={22} />
+            ) : (
+              <Feather name="bar-chart-2" size={20} color={color} />
             ),
         }}
       />
@@ -79,8 +122,6 @@ function ClassicTabLayout() {
 }
 
 export default function TabLayout() {
-  if (isLiquidGlassAvailable()) {
-    return <NativeTabLayout />;
-  }
+  if (isLiquidGlassAvailable()) return <NativeTabLayout />;
   return <ClassicTabLayout />;
 }
