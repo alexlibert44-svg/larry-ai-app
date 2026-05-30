@@ -1,0 +1,27 @@
+kind = "mobile"
+previewPath = "/"
+title = "Your Time with Larry AI"
+version = "1.0.0"
+id = "artifacts/larry-ai"
+router = "expo-domain"
+
+[[integratedSkills]]
+name = "expo"
+version = "1.0.0"
+
+[[services]]
+ensurePreviewReachable = "/status"
+name = "expo"
+paths = [ "/" ]
+localPort = 23877
+
+[services.development]
+run = "pnpm --filter @workspace/larry-ai run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/larry-ai", "run", "build" ]
+run = [ "pnpm", "--filter", "@workspace/larry-ai", "run", "serve" ]
+
+[services.env]
+PORT = "23877"
+BASE_PATH = "/"
