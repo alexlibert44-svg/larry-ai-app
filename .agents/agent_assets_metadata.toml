@@ -1,0 +1,8 @@
+uploads = []
+outputs = []
+
+[[generated]]
+id = "BGy-kqGepAutWsYDHoj5P"
+uri = "file://artifacts/larry-ai/assets/images/icon.png"
+type = "image"
+title = "larry-ai-app-icon"
