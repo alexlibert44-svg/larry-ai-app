@@ -47,13 +47,18 @@ export default function TodayScreen() {
     >
       {/* Header */}
       <View style={styles.header}>
-        <View>
-          <Text style={[styles.greeting, { color: colors.mutedForeground }]}>
-            {getGreeting()}
-          </Text>
-          <Text style={[styles.appName, { color: colors.foreground }]}>
-            Your Time with Larry
-          </Text>
+        <View style={styles.profileRow}>
+          <View style={[styles.avatar, { backgroundColor: character.color + "33", borderColor: character.color }]}>
+            <Feather name="user" size={20} color={character.color} />
+          </View>
+          <View>
+            <Text style={[styles.greeting, { color: colors.mutedForeground }]}>
+              {getGreeting()}
+            </Text>
+            <Text style={[styles.appName, { color: colors.foreground }]}>
+              Larry User
+            </Text>
+          </View>
         </View>
         <View style={styles.streakBadge}>
           <Feather name="zap" size={14} color="#F59E0B" />
@@ -79,7 +84,7 @@ export default function TodayScreen() {
 
       {/* Active Character */}
       <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
-        Your Guide Today
+        Active Guide
       </Text>
       <CharacterCard
         {...character}
@@ -169,12 +174,25 @@ const styles = StyleSheet.create({
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
-    alignItems: "flex-start",
+    alignItems: "center",
     paddingHorizontal: 20,
     marginBottom: 20,
   },
-  greeting: { fontSize: 13, fontWeight: "500", marginBottom: 2 },
-  appName: { fontSize: 22, fontWeight: "700" },
+  profileRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12,
+  },
+  avatar: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 1.5,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  greeting: { fontSize: 12, fontWeight: "500", marginBottom: 1 },
+  appName: { fontSize: 17, fontWeight: "700" },
   streakBadge: {
     flexDirection: "row",
     alignItems: "center",

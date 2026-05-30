@@ -13,7 +13,7 @@ function NativeTabLayout() {
     <NativeTabs>
       <NativeTabs.Trigger name="index">
         <Icon sf={{ default: "house", selected: "house.fill" }} />
-        <Label>Today</Label>
+        <Label>Home</Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="tasks">
         <Icon sf={{ default: "checklist", selected: "checklist" }} />
@@ -26,6 +26,10 @@ function NativeTabLayout() {
       <NativeTabs.Trigger name="progress">
         <Icon sf={{ default: "chart.bar", selected: "chart.bar.fill" }} />
         <Label>Stats</Label>
+      </NativeTabs.Trigger>
+      <NativeTabs.Trigger name="settings">
+        <Icon sf={{ default: "gearshape", selected: "gearshape.fill" }} />
+        <Label>Settings</Label>
       </NativeTabs.Trigger>
     </NativeTabs>
   );
@@ -72,7 +76,7 @@ function ClassicTabLayout() {
       <Tabs.Screen
         name="index"
         options={{
-          title: "Today",
+          title: "Home",
           tabBarIcon: ({ color }) =>
             isIOS ? (
               <SymbolView name="house" tintColor={color} size={22} />
@@ -114,6 +118,18 @@ function ClassicTabLayout() {
               <SymbolView name="chart.bar" tintColor={color} size={22} />
             ) : (
               <Feather name="bar-chart-2" size={20} color={color} />
+            ),
+        }}
+      />
+      <Tabs.Screen
+        name="settings"
+        options={{
+          title: "Settings",
+          tabBarIcon: ({ color }) =>
+            isIOS ? (
+              <SymbolView name="gearshape" tintColor={color} size={22} />
+            ) : (
+              <Feather name="settings" size={20} color={color} />
             ),
         }}
       />
