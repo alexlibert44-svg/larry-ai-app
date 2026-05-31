@@ -7,30 +7,91 @@ import {
   Text,
   View,
 } from "react-native";
+import Svg, { Circle } from "react-native-svg";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { XPRing, StageLabel } from "@/components/XPRing";
 import { useApp } from "@/context/AppContext";
-import { CHARACTERS } from "@/constants/characters";
 import { useColors } from "@/hooks/useColors";
 
-const STAGES = [
-  { num: 1, name: "Awakening", xp: 0, desc: "Becoming aware of patterns and beginning execution." },
-  { num: 2, name: "Replacement", xp: 75, desc: "Introducing positive alternatives to negative habits." },
-  { num: 3, name: "Reinforcement", xp: 200, desc: "Repeating alternatives until they become automatic." },
-  { num: 4, name: "Autonomy", xp: 500, desc: "Making conscious choices with growing self-discipline." },
+const TODAY = new Date().toDateString();
+
+function SuccessRing({ pct, size = 88, color }: { pct: number; size?: number; color: string }) {
+  const radius = (size - 10) / 2;
+  const circumference = 2 * Math.PI * radius;
+  const filled = circumference * (pct / 100);
+
+  return (
+    <Svg width={size} height={size}>
+      <Circle
+        cx={size / 2}
+        cy={size / 2}
+        r={radius}
+        stroke="#ffffff18"
+        strokeWidth={8}
+        fill="none"
+      />
+      <Circle
+        cx={size / 2}
+        cy={size / 2}
+        r={radius}
+        stroke={color}
+        strokeWidth={8}
+        fill="none"
+        strokeDasharray={`${filled} ${circumference - filled}`}
+        strokeDashoffset={circumference / 4}
+        strokeLinecap="round"
+      />
+    </Svg>
+  );
+}
+
+const PRINCIPLES = [
+  {
+    icon: "shield",
+    title: "Understanding",
+    sub: "Know why you do what you do",
+    color: "#8B5CF6",
+  },
+  {
+    icon: "layers",
+    title: "System",
+    sub: "Consistent structure beats willpower",
+    color: "#3B82F6",
+  },
+  {
+    icon: "repeat",
+    title: "Repetition",
+    sub: "Identity is built through daily actions",
+    color: "#10B981",
+  },
+  {
+    icon: "refresh-cw",
+    title: "Replacement",
+    sub: "Gradual change creates lasting habits",
+    color: "#F59E0B",
+  },
 ];
 
 export default function ProgressScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { xp, streak, stage, tasks, activeCharacter } = useApp();
+  const { tasks, habits, streak } = useApp();
 
   const topPad = Platform.OS === "web" ? 67 : insets.top;
-  const character = CHARACTERS.find((c) => c.id === activeCharacter)!;
 
-  const totalTasks = tasks.length;
-  const completedTasks = tasks.filter((t) => t.completed).length;
-  const rate = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;
+  // Today's metrics
+  const todayTasks = tasks.filter((t) => new Date(t.createdAt).toDateString() === TODAY);
+  const completedToday = todayTasks.filter((t) => t.completed).length;
+
+  const habitsCheckedToday = habits.filter(
+    (h) => h.lastChecked !== null && Date.now() - h.lastChecked < 86400000
+  ).length;
+  const habitsLeft = habits.length - habitsCheckedToday;
+
+  const totalPossible = todayTasks.length + habits.length;
+  const totalDone = completedToday + habitsCheckedToday;
+  const successPct = totalPossible > 0 ? Math.round((totalDone / totalPossible) * 100) : 0;
+
+  const pendingTasks = tasks.filter((t) => !t.completed).length;
 
   return (
     <ScrollView
@@ -39,101 +100,64 @@ export default function ProgressScreen() {
       showsVerticalScrollIndicator={false}
     >
       <View style={styles.headRow}>
-        <Text style={[styles.title, { color: colors.foreground }]}>Your Progress</Text>
-        <Text style={[styles.subtitle, { color: colors.mutedForeground }]}>
-          Every point is a step toward autonomy
-        </Text>
+        <Text style={[styles.title, { color: colors.foreground }]}>Stats</Text>
       </View>
 
-      {/* XP Center */}
-      <View style={[styles.xpCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
-        <XPRing xp={xp} stage={stage} color={character.color} size={120} />
-        <StageLabel stage={stage} />
-        <Text style={[styles.xpHint, { color: colors.mutedForeground }]}>
-          {stage < 4
-            ? `${STAGES[stage].xp - xp} XP to reach ${STAGES[stage].name}`
-            : "Maximum stage reached"}
+      {/* ── Success Index Card ── */}
+      <View style={[styles.successCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+        <Text style={[styles.successLabel, { color: colors.mutedForeground }]}>
+          TODAY'S SUCCESS INDEX
         </Text>
-      </View>
-
-      {/* Stats row */}
-      <View style={styles.statsRow}>
-        {[
-          { label: "Streak", value: `${streak}d`, icon: "zap", color: "#F59E0B" },
-          { label: "Tasks Done", value: String(completedTasks), icon: "check-circle", color: character.color },
-          { label: "Success Rate", value: `${rate}%`, icon: "trending-up", color: "#10B981" },
-        ].map((s) => (
-          <View
-            key={s.label}
-            style={[styles.statCard, { backgroundColor: colors.card, borderColor: colors.border }]}
-          >
-            <Feather name={s.icon as any} size={20} color={s.color} />
-            <Text style={[styles.statValue, { color: colors.foreground }]}>{s.value}</Text>
-            <Text style={[styles.statLabel, { color: colors.mutedForeground }]}>{s.label}</Text>
+        <View style={styles.successBody}>
+          <View style={styles.successLeft}>
+            <Text style={[styles.successPct, { color: colors.foreground }]}>
+              {successPct}%
+            </Text>
+            <Text style={[styles.successRatio, { color: colors.mutedForeground }]}>
+              {completedToday}/{todayTasks.length} tasks · {habitsCheckedToday}/{habits.length} habits
+            </Text>
           </View>
-        ))}
+          <SuccessRing pct={successPct} size={96} color={successPct >= 80 ? "#10B981" : successPct >= 40 ? "#F59E0B" : "#8B5CF6"} />
+        </View>
       </View>
 
-      {/* Stage Journey */}
+      {/* ── Three Metric Cards ── */}
+      <View style={styles.metricsRow}>
+        <MetricCard
+          icon="check-circle"
+          iconColor="#3B82F6"
+          value={String(pendingTasks)}
+          label="Pending Tasks"
+        />
+        <MetricCard
+          icon="trending-up"
+          iconColor="#10B981"
+          value={`${streak}d`}
+          label="Habit Streak"
+        />
+        <MetricCard
+          icon="zap"
+          iconColor="#8B5CF6"
+          value={String(habitsLeft)}
+          label="Habits Left"
+        />
+      </View>
+
+      {/* ── Core Principles ── */}
       <Text style={[styles.sectionTitle, { color: colors.foreground }]}>
-        Stage Journey
+        Core Principles
       </Text>
-      <View style={styles.stagesContainer}>
-        {STAGES.map((s, i) => {
-          const isCompleted = stage > s.num;
-          const isCurrent = stage === s.num;
-          const stageColor = isCompleted || isCurrent ? character.color : colors.mutedForeground;
-          return (
-            <View key={s.num} style={styles.stageItem}>
-              {i > 0 && (
-                <View
-                  style={[
-                    styles.stageLine,
-                    { backgroundColor: isCompleted ? character.color : colors.border },
-                  ]}
-                />
-              )}
-              <View
-                style={[
-                  styles.stageCircle,
-                  {
-                    backgroundColor: isCompleted ? character.color : isCurrent ? character.color + "33" : colors.card,
-                    borderColor: stageColor,
-                  },
-                ]}
-              >
-                {isCompleted ? (
-                  <Feather name="check" size={14} color="#fff" />
-                ) : (
-                  <Text style={[styles.stageNumText, { color: stageColor }]}>{s.num}</Text>
-                )}
-              </View>
-              <View style={styles.stageContent}>
-                <Text style={[styles.stageName, { color: isCurrent || isCompleted ? colors.foreground : colors.mutedForeground }]}>
-                  {s.name}
-                </Text>
-                <Text style={[styles.stageXP, { color: character.color }]}>{s.xp} XP</Text>
-                {isCurrent && (
-                  <Text style={[styles.stageDesc, { color: colors.mutedForeground }]}>{s.desc}</Text>
-                )}
-              </View>
+      <View style={styles.principlesGrid}>
+        {PRINCIPLES.map((p) => (
+          <View
+            key={p.title}
+            style={[styles.principleCard, { backgroundColor: colors.card, borderColor: colors.border }]}
+          >
+            <View style={[styles.principleIconWrap, { backgroundColor: p.color + "22" }]}>
+              <Feather name={p.icon as any} size={20} color={p.color} />
             </View>
-          );
-        })}
-      </View>
-
-      {/* XP Guide */}
-      <View style={[styles.xpGuide, { backgroundColor: colors.card, borderColor: colors.border }]}>
-        <Text style={[styles.xpGuideTitle, { color: colors.foreground }]}>How to earn XP</Text>
-        {[
-          { action: "Complete a mission", xp: "+15 XP", color: character.color },
-          { action: "Check a habit replacement", xp: "+10 XP", color: "#10B981" },
-          { action: "Keep your daily streak", xp: "Bonus +1 streak", color: "#F59E0B" },
-        ].map((item) => (
-          <View key={item.action} style={styles.xpRow}>
-            <View style={[styles.xpDot, { backgroundColor: item.color }]} />
-            <Text style={[styles.xpAction, { color: colors.foreground }]}>{item.action}</Text>
-            <Text style={[styles.xpAmount, { color: item.color }]}>{item.xp}</Text>
+            <Text style={[styles.principleTitle, { color: colors.foreground }]}>{p.title}</Text>
+            <Text style={[styles.principleSub, { color: colors.mutedForeground }]}>{p.sub}</Text>
           </View>
         ))}
       </View>
@@ -141,28 +165,64 @@ export default function ProgressScreen() {
   );
 }
 
+function MetricCard({
+  icon,
+  iconColor,
+  value,
+  label,
+}: {
+  icon: string;
+  iconColor: string;
+  value: string;
+  label: string;
+}) {
+  const colors = useColors();
+  return (
+    <View style={[styles.metricCard, { backgroundColor: colors.card, borderColor: colors.border }]}>
+      <Feather name={icon as any} size={20} color={iconColor} />
+      <Text style={[styles.metricValue, { color: colors.foreground }]}>{value}</Text>
+      <Text style={[styles.metricLabel, { color: colors.mutedForeground }]}>{label}</Text>
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   container: { flex: 1 },
   headRow: { paddingHorizontal: 20, marginBottom: 20 },
   title: { fontSize: 28, fontWeight: "700" },
-  subtitle: { fontSize: 13, marginTop: 4 },
-  xpCard: {
+
+  /* Success Index */
+  successCard: {
     marginHorizontal: 20,
-    marginBottom: 20,
+    marginBottom: 16,
     borderRadius: 20,
     borderWidth: 1,
-    padding: 24,
-    alignItems: "center",
-    gap: 8,
+    padding: 20,
   },
-  xpHint: { fontSize: 12, textAlign: "center", marginTop: 4 },
-  statsRow: {
+  successLabel: {
+    fontSize: 10,
+    fontWeight: "700",
+    letterSpacing: 1.2,
+    textTransform: "uppercase",
+    marginBottom: 16,
+  },
+  successBody: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+  },
+  successLeft: { gap: 6 },
+  successPct: { fontSize: 56, fontWeight: "800", lineHeight: 60 },
+  successRatio: { fontSize: 12 },
+
+  /* Metric cards */
+  metricsRow: {
     flexDirection: "row",
     paddingHorizontal: 20,
     gap: 10,
     marginBottom: 28,
   },
-  statCard: {
+  metricCard: {
     flex: 1,
     borderRadius: 16,
     borderWidth: 1,
@@ -170,44 +230,36 @@ const styles = StyleSheet.create({
     alignItems: "center",
     gap: 6,
   },
-  statValue: { fontSize: 22, fontWeight: "700" },
-  statLabel: { fontSize: 11, fontWeight: "600" },
+  metricValue: { fontSize: 20, fontWeight: "700" },
+  metricLabel: { fontSize: 10, fontWeight: "600", textAlign: "center" },
+
+  /* Core Principles */
   sectionTitle: {
     fontSize: 17,
     fontWeight: "700",
     paddingHorizontal: 20,
-    marginBottom: 16,
+    marginBottom: 14,
   },
-  stagesContainer: {
+  principlesGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
     paddingHorizontal: 20,
-    marginBottom: 28,
-    gap: 0,
+    gap: 12,
   },
-  stageItem: { flexDirection: "row", alignItems: "flex-start", gap: 14, marginBottom: 16 },
-  stageLine: { position: "absolute", left: 15, top: -16, width: 2, height: 16 },
-  stageCircle: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    borderWidth: 2,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  stageNumText: { fontSize: 13, fontWeight: "700" },
-  stageContent: { flex: 1, paddingTop: 4 },
-  stageName: { fontSize: 15, fontWeight: "600" },
-  stageXP: { fontSize: 12, fontWeight: "600", marginTop: 1 },
-  stageDesc: { fontSize: 12, marginTop: 4, lineHeight: 17 },
-  xpGuide: {
-    marginHorizontal: 20,
+  principleCard: {
+    width: "47%",
     borderRadius: 16,
     borderWidth: 1,
     padding: 16,
-    gap: 12,
+    gap: 8,
   },
-  xpGuideTitle: { fontSize: 15, fontWeight: "700", marginBottom: 4 },
-  xpRow: { flexDirection: "row", alignItems: "center", gap: 10 },
-  xpDot: { width: 8, height: 8, borderRadius: 4 },
-  xpAction: { flex: 1, fontSize: 13 },
-  xpAmount: { fontSize: 13, fontWeight: "700" },
+  principleIconWrap: {
+    width: 40,
+    height: 40,
+    borderRadius: 12,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  principleTitle: { fontSize: 14, fontWeight: "700" },
+  principleSub: { fontSize: 11, lineHeight: 15 },
 });
