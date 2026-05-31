@@ -18,6 +18,7 @@ export interface Task {
 
 export interface Habit {
   id: string;
+  trigger: string;
   negative: string;
   positive: string;
   characterId: CharacterId;
@@ -42,7 +43,7 @@ interface AppContextType extends AppState {
   addTask: (title: string, characterId: CharacterId) => void;
   completeTask: (id: string) => void;
   deleteTask: (id: string) => void;
-  addHabit: (negative: string, positive: string, characterId: CharacterId) => void;
+  addHabit: (trigger: string, negative: string, positive: string, characterId: CharacterId) => void;
   checkHabit: (id: string) => void;
   deleteHabit: (id: string) => void;
   setActiveCharacter: (id: CharacterId) => void;
@@ -196,13 +197,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   );
 
   const addHabit = useCallback(
-    (negative: string, positive: string, characterId: CharacterId) => {
+    (trigger: string, negative: string, positive: string, characterId: CharacterId) => {
       setState((prev) => {
         const next: AppState = {
           ...prev,
           habits: [
             {
               id: uid(),
+              trigger,
               negative,
               positive,
               characterId,
