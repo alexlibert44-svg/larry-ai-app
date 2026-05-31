@@ -13,6 +13,7 @@ import Animated, {
   withSpring,
 } from "react-native-reanimated";
 import { useColors } from "@/hooks/useColors";
+import { useApp } from "@/context/AppContext";
 
 interface Props {
   id: string;
@@ -43,6 +44,8 @@ export function CharacterCard({
   size = "small",
 }: Props) {
   const colors = useColors();
+  const { isDarkMode } = useApp();
+  const cardBg = isDarkMode ? bgColor : color + "18";
   const scale = useSharedValue(1);
 
   const animStyle = useAnimatedStyle(() => ({
@@ -59,7 +62,7 @@ export function CharacterCard({
   if (size === "large") {
     return (
       <AnimatedPressable
-        style={[animStyle, styles.largeCard, { backgroundColor: bgColor, borderColor: isActive ? color : colors.border }]}
+        style={[animStyle, styles.largeCard, { backgroundColor: cardBg, borderColor: isActive ? color : colors.border }]}
         onPress={onPress}
         onPressIn={handlePressIn}
         onPressOut={handlePressOut}
@@ -87,7 +90,7 @@ export function CharacterCard({
 
   return (
     <AnimatedPressable
-      style={[animStyle, styles.smallCard, { backgroundColor: bgColor, borderColor: isActive ? color : colors.border }]}
+      style={[animStyle, styles.smallCard, { backgroundColor: cardBg, borderColor: isActive ? color : colors.border }]}
       onPress={onPress}
       onPressIn={handlePressIn}
       onPressOut={handlePressOut}

@@ -132,7 +132,7 @@ export default function TodayScreen() {
         {CHARACTERS.filter((c) => c.id !== activeCharacter).map((c) => (
           <Pressable
             key={c.id}
-            style={[styles.switchChip, { backgroundColor: c.bgColor, borderColor: c.color + "66" }]}
+            style={[styles.switchChip, { backgroundColor: isDarkMode ? c.bgColor : c.color + "18", borderColor: c.color + "66" }]}
             onPress={() => setActiveCharacter(c.id)}
           >
             <View style={[styles.switchDot, { backgroundColor: c.color }]} />

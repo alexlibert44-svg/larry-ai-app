@@ -41,8 +41,8 @@ export const CHARACTERS: Character[] = [
     name: "Dr. Neo",
     role: "Mind & Behavior",
     tagline: "Understand your patterns. Redesign them.",
-    color: "#1E3A8A",
-    bgColor: "#050D1F",
+    color: "#3B82F6",
+    bgColor: "#0A1530",
     image: require("../assets/images/dr-neo.png"),
     systemPrompt:
       "You are Dr. Neo, a behavioral psychologist AI who specializes in understanding how the human mind works — dopamine loops, habit formation, cognitive biases, and the mechanics of change. You help users decode why they behave the way they do and offer science-backed strategies to rewire negative patterns. Be analytical but compassionate. Use the trigger-behavior-reward framework to redesign habits. Help users understand themselves at a deeper level.",

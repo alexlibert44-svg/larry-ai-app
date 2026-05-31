@@ -32,6 +32,7 @@ export default function TasksScreen() {
     addHabit,
     checkHabit,
     deleteHabit,
+    isDarkMode,
   } = useApp();
 
   const [tab, setTab] = useState<"tasks" | "habits">("tasks");
@@ -124,7 +125,7 @@ export default function TasksScreen() {
                   style={[
                     styles.charChip,
                     {
-                      backgroundColor: selectedChar === c.id ? c.color : c.bgColor,
+                      backgroundColor: selectedChar === c.id ? c.color : (isDarkMode ? c.bgColor : c.color + "18"),
                       borderColor: c.color + "66",
                     },
                   ]}
