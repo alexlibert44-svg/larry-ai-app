@@ -22,8 +22,6 @@ export default function TodayScreen() {
   const router = useRouter();
   const {
     tasks,
-    xp,
-    stage,
     activeCharacter,
     setActiveCharacter,
     isDarkMode,
@@ -82,20 +80,6 @@ export default function TodayScreen() {
             color={isDarkMode ? "#F59E0B" : "#8B5CF6"}
           />
         </Pressable>
-      </View>
-
-      {/* Stage Banner */}
-      <View style={[styles.stageBanner, { backgroundColor: colors.card, borderColor: colors.border }]}>
-        <View style={styles.stageLeft}>
-          <Text style={[styles.stageLabel, { color: colors.mutedForeground }]}>
-            Behavioral Stage
-          </Text>
-          <StageLabel stage={stage} />
-          <Text style={[styles.stageDesc, { color: colors.mutedForeground }]}>
-            {STAGE_DESCRIPTIONS[Math.min(stage - 1, 3)]}
-          </Text>
-        </View>
-        <XPRing xp={xp} stage={stage} color={character.color} size={84} />
       </View>
 
       {/* Active Character */}

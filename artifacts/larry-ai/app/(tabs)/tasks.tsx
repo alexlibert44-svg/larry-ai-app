@@ -14,7 +14,7 @@ import {
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { TaskItem } from "@/components/TaskItem";
 import { useApp } from "@/context/AppContext";
-import { CHARACTERS, CharacterId } from "@/constants/characters";
+import { CHARACTERS } from "@/constants/characters";
 import { useColors } from "@/hooks/useColors";
 
 const HABIT_GREEN = "#22C55E";
@@ -37,7 +37,6 @@ export default function TasksScreen() {
 
   const [tab, setTab] = useState<"tasks" | "habits">("tasks");
   const [taskInput, setTaskInput] = useState("");
-  const [selectedChar, setSelectedChar] = useState<CharacterId>(activeCharacter);
 
   // Habit modal
   const [habitModalVisible, setHabitModalVisible] = useState(false);
@@ -48,12 +47,12 @@ export default function TasksScreen() {
   const topPad = Platform.OS === "web" ? 67 : insets.top;
   const pending = tasks.filter((t) => !t.completed);
   const done = tasks.filter((t) => t.completed);
-  const charForSelected = CHARACTERS.find((c) => c.id === selectedChar)!;
+  const activeChar = CHARACTERS.find((c) => c.id === activeCharacter)!;
 
   const handleAddTask = () => {
     if (!taskInput.trim()) return;
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    addTask(taskInput.trim(), selectedChar);
+    addTask(taskInput.trim(), activeCharacter);
     setTaskInput("");
   };
 
@@ -110,31 +109,11 @@ export default function TasksScreen() {
                 returnKeyType="done"
               />
               <Pressable
-                style={[styles.addBtn, { backgroundColor: charForSelected.color }]}
+                style={[styles.addBtn, { backgroundColor: activeChar.color }]}
                 onPress={handleAddTask}
               >
                 <Feather name="plus" size={20} color="#fff" />
               </Pressable>
-            </View>
-
-            <View style={styles.charRow}>
-              {CHARACTERS.map((c) => (
-                <Pressable
-                  key={c.id}
-                  onPress={() => setSelectedChar(c.id)}
-                  style={[
-                    styles.charChip,
-                    {
-                      backgroundColor: selectedChar === c.id ? c.color : (isDarkMode ? c.bgColor : c.color + "18"),
-                      borderColor: c.color + "66",
-                    },
-                  ]}
-                >
-                  <Text style={[styles.charChipText, { color: selectedChar === c.id ? "#fff" : c.color }]}>
-                    {c.name}
-                  </Text>
-                </Pressable>
-              ))}
             </View>
 
             <FlatList

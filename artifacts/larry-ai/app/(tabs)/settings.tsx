@@ -184,9 +184,7 @@ export default function SettingsScreen() {
         {/* Progress */}
         <SectionHeader title="YOUR PROGRESS" />
         <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <SettingRow icon="zap" label="Total XP" value={`${xp} XP`} color="#F59E0B" />
-          <SettingRow icon="trending-up" label="Streak" value={`${streak} days`} color="#10B981" />
-          <SettingRow icon="layers" label="Stage" value={`Stage ${stage}`} color="#3B82F6" last />
+            <SettingRow icon="trending-up" label="Streak" value={`${streak} days`} color="#10B981" last />
         </View>
 
         {/* About */}
