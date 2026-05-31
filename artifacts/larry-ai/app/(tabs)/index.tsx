@@ -12,17 +12,9 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { CharacterCard } from "@/components/CharacterCard";
-import { XPRing, StageLabel } from "@/components/XPRing";
 import { useApp } from "@/context/AppContext";
 import { getCharacter, CHARACTERS } from "@/constants/characters";
 import { useColors } from "@/hooks/useColors";
-
-const STAGE_DESCRIPTIONS = [
-  "Focus on completing daily tasks and reducing distractions.",
-  "Gradually replace a negative habit with a short positive alternative.",
-  "Repeat the alternative behavior until it becomes automatic.",
-  "You are making conscious choices and relying less on restrictions.",
-];
 
 export default function TodayScreen() {
   const colors = useColors();

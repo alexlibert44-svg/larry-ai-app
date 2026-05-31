@@ -70,7 +70,7 @@ function SectionHeader({ title }: { title: string }) {
 export default function SettingsScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { xp, streak, stage, activeCharacter, isDarkMode, setDarkMode, userName, userAvatar, setUserName, setUserAvatar } = useApp();
+  const { streak, activeCharacter, isDarkMode, setDarkMode, userName, userAvatar, setUserName, setUserAvatar } = useApp();
   const [notifications, setNotifications] = useState(true);
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [draftName, setDraftName] = useState(userName);
