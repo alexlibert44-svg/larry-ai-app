@@ -17,7 +17,6 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useColors } from "@/hooks/useColors";
 import { useApp } from "@/context/AppContext";
 import { CHARACTERS } from "@/constants/characters";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 
 interface SettingRowProps {
   icon: string;
@@ -66,23 +65,6 @@ export default function SettingsScreen() {
   const topPad = Platform.OS === "web" ? 67 : insets.top;
   const character = CHARACTERS.find((c) => c.id === activeCharacter)!;
   const displayName = userName.trim() || "User";
-
-  const handleResetProgress = () => {
-    Alert.alert(
-      "Reset Progress",
-      "This will permanently erase all your XP, tasks, and habits. This cannot be undone.",
-      [
-        { text: "Cancel", style: "cancel" },
-        {
-          text: "Reset",
-          style: "destructive",
-          onPress: async () => {
-            await AsyncStorage.clear();
-          },
-        },
-      ]
-    );
-  };
 
   const handleAvatarPress = () => {
     setDraftName(userName);
@@ -160,17 +142,6 @@ export default function SettingsScreen() {
           <SettingRow icon="info" label="Version" value="1.0.0" last />
         </View>
 
-        {/* Danger Zone */}
-        <SectionHeader title="DANGER ZONE" />
-        <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <SettingRow
-            icon="trash-2"
-            label="Reset All Progress"
-            onPress={handleResetProgress}
-            color="#EF4444"
-            last
-          />
-        </View>
       </ScrollView>
 
       {/* Profile Edit Modal */}
