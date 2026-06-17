@@ -24,8 +24,6 @@ export default function TodayScreen() {
     tasks,
     activeCharacter,
     setActiveCharacter,
-    isDarkMode,
-    setDarkMode,
     userName,
     userAvatar,
   } = useApp();
@@ -68,18 +66,6 @@ export default function TodayScreen() {
           </View>
         </View>
 
-        {/* Sun / Moon theme toggle */}
-        <Pressable
-          style={[styles.themeBtn, { backgroundColor: colors.card, borderColor: colors.border }]}
-          onPress={() => setDarkMode(!isDarkMode)}
-          hitSlop={8}
-        >
-          <Feather
-            name={isDarkMode ? "sun" : "moon"}
-            size={18}
-            color={isDarkMode ? "#F59E0B" : "#8B5CF6"}
-          />
-        </Pressable>
       </View>
 
       {/* Active Character */}
@@ -108,7 +94,7 @@ export default function TodayScreen() {
         {CHARACTERS.filter((c) => c.id !== activeCharacter).map((c) => (
           <Pressable
             key={c.id}
-            style={[styles.switchChip, { backgroundColor: isDarkMode ? c.bgColor : c.color + "18", borderColor: c.color + "66" }]}
+            style={[styles.switchChip, { backgroundColor: c.bgColor, borderColor: c.color + "66" }]}
             onPress={() => setActiveCharacter(c.id)}
           >
             <View style={[styles.switchDot, { backgroundColor: c.color }]} />

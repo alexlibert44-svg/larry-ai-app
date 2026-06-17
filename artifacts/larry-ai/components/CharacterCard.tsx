@@ -13,7 +13,6 @@ import Animated, {
   withSpring,
 } from "react-native-reanimated";
 import { useColors } from "@/hooks/useColors";
-import { useApp } from "@/context/AppContext";
 
 interface Props {
   id: string;
@@ -44,8 +43,7 @@ export function CharacterCard({
   size = "small",
 }: Props) {
   const colors = useColors();
-  const { isDarkMode } = useApp();
-  const cardBg = isDarkMode ? bgColor : color + "18";
+  const cardBg = bgColor;
   const scale = useSharedValue(1);
 
   const animStyle = useAnimatedStyle(() => ({

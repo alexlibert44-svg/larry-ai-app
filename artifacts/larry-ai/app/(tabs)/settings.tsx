@@ -1,5 +1,4 @@
 import { Feather } from "@expo/vector-icons";
-import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as ImagePicker from "expo-image-picker";
 import React, { useState } from "react";
 import {
@@ -10,7 +9,6 @@ import {
   Pressable,
   ScrollView,
   StyleSheet,
-  Switch,
   Text,
   TextInput,
   View,
@@ -19,39 +17,30 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { useColors } from "@/hooks/useColors";
 import { useApp } from "@/context/AppContext";
 import { CHARACTERS } from "@/constants/characters";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 interface SettingRowProps {
   icon: string;
   label: string;
   value?: string;
   onPress?: () => void;
-  toggle?: boolean;
-  toggleValue?: boolean;
-  onToggle?: (v: boolean) => void;
   color?: string;
   last?: boolean;
 }
 
-function SettingRow({ icon, label, value, onPress, toggle, toggleValue, onToggle, color, last }: SettingRowProps) {
+function SettingRow({ icon, label, value, onPress, color, last }: SettingRowProps) {
   const colors = useColors();
   return (
     <Pressable
       style={[styles.row, !last && { borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: colors.border }]}
       onPress={onPress}
-      disabled={!onPress && !toggle}
+      disabled={!onPress}
     >
       <View style={[styles.rowIcon, { backgroundColor: (color ?? colors.primary) + "22" }]}>
         <Feather name={icon as any} size={16} color={color ?? colors.primary} />
       </View>
       <Text style={[styles.rowLabel, { color: colors.foreground }]}>{label}</Text>
-      {toggle ? (
-        <Switch
-          value={toggleValue}
-          onValueChange={onToggle}
-          trackColor={{ true: colors.primary }}
-          thumbColor="#fff"
-        />
-      ) : value ? (
+      {value ? (
         <Text style={[styles.rowValue, { color: colors.mutedForeground }]}>{value}</Text>
       ) : onPress ? (
         <Feather name="chevron-right" size={16} color={colors.mutedForeground} />
@@ -70,8 +59,7 @@ function SectionHeader({ title }: { title: string }) {
 export default function SettingsScreen() {
   const colors = useColors();
   const insets = useSafeAreaInsets();
-  const { streak, activeCharacter, isDarkMode, setDarkMode, userName, userAvatar, setUserName, setUserAvatar } = useApp();
-  const [notifications, setNotifications] = useState(true);
+  const { streak, activeCharacter, userName, userAvatar, setUserName, setUserAvatar } = useApp();
   const [editModalVisible, setEditModalVisible] = useState(false);
   const [draftName, setDraftName] = useState(userName);
 
@@ -160,44 +148,16 @@ export default function SettingsScreen() {
           <Feather name="chevron-right" size={18} color={colors.mutedForeground} />
         </Pressable>
 
-        {/* Preferences */}
-        <SectionHeader title="PREFERENCES" />
-        <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <SettingRow
-            icon="bell"
-            label="Daily Reminders"
-            toggle
-            toggleValue={notifications}
-            onToggle={setNotifications}
-          />
-          <SettingRow
-            icon={isDarkMode ? "moon" : "sun"}
-            label="Dark Mode"
-            toggle
-            toggleValue={isDarkMode}
-            onToggle={setDarkMode}
-            color="#8B5CF6"
-            last
-          />
-        </View>
-
         {/* Progress */}
         <SectionHeader title="YOUR PROGRESS" />
         <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
-            <SettingRow icon="trending-up" label="Streak" value={`${streak} days`} color="#10B981" last />
+          <SettingRow icon="trending-up" label="Streak" value={`${streak} days`} color="#10B981" last />
         </View>
 
         {/* About */}
         <SectionHeader title="ABOUT" />
         <View style={[styles.section, { backgroundColor: colors.card, borderColor: colors.border }]}>
-          <SettingRow icon="info" label="Version" value="1.0.0" />
-          <SettingRow
-            icon="book-open"
-            label="System Philosophy"
-            onPress={() => {}}
-            color="#8B5CF6"
-            last
-          />
+          <SettingRow icon="info" label="Version" value="1.0.0" last />
         </View>
 
         {/* Danger Zone */}

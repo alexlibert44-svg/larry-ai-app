@@ -32,7 +32,6 @@ export default function TasksScreen() {
     addHabit,
     checkHabit,
     deleteHabit,
-    isDarkMode,
   } = useApp();
 
   const [tab, setTab] = useState<"tasks" | "habits">("tasks");

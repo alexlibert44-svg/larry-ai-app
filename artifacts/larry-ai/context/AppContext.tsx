@@ -34,7 +34,6 @@ interface AppState {
   stage: number;
   activeCharacter: CharacterId;
   lastActiveDate: string | null;
-  isDarkMode: boolean;
   userName: string;
   userAvatar: string | null;
 }
@@ -47,7 +46,6 @@ interface AppContextType extends AppState {
   checkHabit: (id: string) => void;
   deleteHabit: (id: string) => void;
   setActiveCharacter: (id: CharacterId) => void;
-  setDarkMode: (value: boolean) => void;
   setUserName: (name: string) => void;
   setUserAvatar: (uri: string | null) => void;
 }
@@ -64,7 +62,6 @@ const defaultState: AppState = {
   stage: 1,
   activeCharacter: "larry",
   lastActiveDate: null,
-  isDarkMode: true,
   userName: "",
   userAvatar: null,
 };
@@ -85,7 +82,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     AsyncStorage.getItem(STORAGE_KEY).then((raw) => {
       if (raw) {
         try {
-          const parsed = JSON.parse(raw) as AppState;
+          const parsed = JSON.parse(raw) as AppState & { isDarkMode?: boolean };
           const today = todayString();
           const lastDate = parsed.lastActiveDate;
           let streak = parsed.streak;
@@ -97,9 +94,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
               streak = 0;
             }
           }
+          const { isDarkMode: _ignored, ...rest } = parsed;
           setState({
             ...defaultState,
-            ...parsed,
+            ...rest,
             streak,
             lastActiveDate: today,
           });
@@ -113,10 +111,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
-  const save = useCallback((next: AppState) => {
-    setState(next);
-    AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(next));
-  }, []);
+  useEffect(() => {
+    if (loaded) {
+      AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    }
+  }, [state, loaded]);
 
   const computeStage = (xp: number) => {
     if (xp >= 500) return 4;
@@ -146,25 +145,21 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
   const addTask = useCallback(
     (title: string, characterId: CharacterId) => {
-      setState((prev) => {
-        const next: AppState = {
-          ...prev,
-          tasks: [
-            {
-              id: uid(),
-              title,
-              characterId,
-              completed: false,
-              createdAt: Date.now(),
-            },
-            ...prev.tasks,
-          ],
-        };
-        save(next);
-        return next;
-      });
+      setState((prev) => ({
+        ...prev,
+        tasks: [
+          {
+            id: uid(),
+            title,
+            characterId,
+            completed: false,
+            createdAt: Date.now(),
+          },
+          ...prev.tasks,
+        ],
+      }));
     },
-    [save]
+    []
   );
 
   const completeTask = useCallback(
@@ -173,52 +168,38 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         const tasks = prev.tasks.map((t) =>
           t.id === id ? { ...t, completed: true } : t
         );
-        let next: AppState = { ...prev, tasks };
-        next = addXP(15, next);
-        save(next);
-        return next;
+        return addXP(15, { ...prev, tasks });
       });
     },
-    [save, addXP]
+    [addXP]
   );
 
-  const deleteTask = useCallback(
-    (id: string) => {
-      setState((prev) => {
-        const next: AppState = {
-          ...prev,
-          tasks: prev.tasks.filter((t) => t.id !== id),
-        };
-        save(next);
-        return next;
-      });
-    },
-    [save]
-  );
+  const deleteTask = useCallback((id: string) => {
+    setState((prev) => ({
+      ...prev,
+      tasks: prev.tasks.filter((t) => t.id !== id),
+    }));
+  }, []);
 
   const addHabit = useCallback(
     (trigger: string, negative: string, positive: string, characterId: CharacterId) => {
-      setState((prev) => {
-        const next: AppState = {
-          ...prev,
-          habits: [
-            {
-              id: uid(),
-              trigger,
-              negative,
-              positive,
-              characterId,
-              streak: 0,
-              lastChecked: null,
-            },
-            ...prev.habits,
-          ],
-        };
-        save(next);
-        return next;
-      });
+      setState((prev) => ({
+        ...prev,
+        habits: [
+          {
+            id: uid(),
+            trigger,
+            negative,
+            positive,
+            characterId,
+            streak: 0,
+            lastChecked: null,
+          },
+          ...prev.habits,
+        ],
+      }));
     },
-    [save]
+    []
   );
 
   const checkHabit = useCallback(
@@ -233,72 +214,30 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           if (alreadyToday) return h;
           return { ...h, streak: h.streak + 1, lastChecked: today };
         });
-        let next: AppState = { ...prev, habits };
-        next = addXP(10, next);
-        save(next);
-        return next;
+        return addXP(10, { ...prev, habits });
       });
     },
-    [save, addXP]
+    [addXP]
   );
 
-  const deleteHabit = useCallback(
-    (id: string) => {
-      setState((prev) => {
-        const next: AppState = {
-          ...prev,
-          habits: prev.habits.filter((h) => h.id !== id),
-        };
-        save(next);
-        return next;
-      });
-    },
-    [save]
-  );
+  const deleteHabit = useCallback((id: string) => {
+    setState((prev) => ({
+      ...prev,
+      habits: prev.habits.filter((h) => h.id !== id),
+    }));
+  }, []);
 
-  const setActiveCharacter = useCallback(
-    (id: CharacterId) => {
-      setState((prev) => {
-        const next: AppState = { ...prev, activeCharacter: id };
-        save(next);
-        return next;
-      });
-    },
-    [save]
-  );
+  const setActiveCharacter = useCallback((id: CharacterId) => {
+    setState((prev) => ({ ...prev, activeCharacter: id }));
+  }, []);
 
-  const setDarkMode = useCallback(
-    (value: boolean) => {
-      setState((prev) => {
-        const next: AppState = { ...prev, isDarkMode: value };
-        save(next);
-        return next;
-      });
-    },
-    [save]
-  );
+  const setUserName = useCallback((name: string) => {
+    setState((prev) => ({ ...prev, userName: name }));
+  }, []);
 
-  const setUserName = useCallback(
-    (name: string) => {
-      setState((prev) => {
-        const next: AppState = { ...prev, userName: name };
-        save(next);
-        return next;
-      });
-    },
-    [save]
-  );
-
-  const setUserAvatar = useCallback(
-    (uri: string | null) => {
-      setState((prev) => {
-        const next: AppState = { ...prev, userAvatar: uri };
-        save(next);
-        return next;
-      });
-    },
-    [save]
-  );
+  const setUserAvatar = useCallback((uri: string | null) => {
+    setState((prev) => ({ ...prev, userAvatar: uri }));
+  }, []);
 
   if (!loaded) return null;
 
@@ -313,7 +252,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         checkHabit,
         deleteHabit,
         setActiveCharacter,
-        setDarkMode,
         setUserName,
         setUserAvatar,
       }}
