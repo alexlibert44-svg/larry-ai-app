@@ -64,7 +64,6 @@ export default function ChatScreen() {
         characterId: character.id,
         messages: current
           .filter((m) => m.id !== "intro")
-          .concat(current[0].id === "intro" ? [] : [])
           .map((m) => ({ role: m.role, content: m.content })),
       };
 

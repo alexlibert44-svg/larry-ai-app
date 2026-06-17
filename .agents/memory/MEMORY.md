@@ -1,0 +1,1 @@
+- [Gemini API Setup](gemini-api-setup.md) — use gemini-2.5-flash on v1beta; other models either 404 or have limit:0 free tier; 5 req/min cap.
