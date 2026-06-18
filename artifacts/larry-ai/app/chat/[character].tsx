@@ -15,8 +15,9 @@ import {
 } from "react-native";
 import { KeyboardAvoidingView } from "react-native-keyboard-controller";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { ConversationSidebar } from "@/components/ConversationSidebar";
 import { getCharacter } from "@/constants/characters";
-import { useApp } from "@/context/AppContext";
+import { SavedConversation, useApp } from "@/context/AppContext";
 import { useColors } from "@/hooks/useColors";
 
 interface Message {
@@ -30,7 +31,6 @@ function uid() {
 }
 
 const BASE_URL = `https://${process.env.EXPO_PUBLIC_DOMAIN}`;
-
 const TODAY = new Date().toDateString();
 
 export default function ChatScreen() {
@@ -47,6 +47,10 @@ export default function ChatScreen() {
     streak,
     stage,
     userName,
+    conversations,
+    saveConversation,
+    deleteConversation,
+    renameConversation,
   } = useApp();
 
   const [messages, setMessages] = useState<Message[]>([
@@ -58,6 +62,9 @@ export default function ChatScreen() {
   ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  const convIdRef = useRef<string | null>(null);
   const flatRef = useRef<FlatList>(null);
 
   const buildUserContext = useCallback(() => {
@@ -106,6 +113,53 @@ export default function ChatScreen() {
     };
   }, [tasks, habits, xp, streak, stage, userName]);
 
+  const autoSave = useCallback(
+    (msgs: Message[]) => {
+      const realMsgs = msgs.filter((m) => m.id !== "intro");
+      const userMsgs = realMsgs.filter((m) => m.role === "user");
+      if (userMsgs.length === 0) return;
+
+      if (!convIdRef.current) {
+        convIdRef.current = uid();
+      }
+
+      const rawTitle = userMsgs[0].content;
+      const title =
+        rawTitle.length > 40 ? rawTitle.slice(0, 37) + "..." : rawTitle;
+
+      const conv: SavedConversation = {
+        id: convIdRef.current,
+        characterId: character.id,
+        title,
+        messages: realMsgs,
+        createdAt: Date.now(),
+        updatedAt: Date.now(),
+      };
+      saveConversation(conv);
+    },
+    [character.id, saveConversation]
+  );
+
+  const startNewChat = useCallback(() => {
+    convIdRef.current = null;
+    setMessages([
+      {
+        id: "intro",
+        role: "assistant",
+        content: getIntro(character.id, userName),
+      },
+    ]);
+    setInput("");
+    setSidebarOpen(false);
+  }, [character.id, userName]);
+
+  const loadConversation = useCallback((conv: SavedConversation) => {
+    convIdRef.current = conv.id;
+    setMessages(conv.messages);
+    setInput("");
+    setSidebarOpen(false);
+  }, []);
+
   const sendMessage = useCallback(async () => {
     const text = input.trim();
     if (!text || loading) return;
@@ -139,7 +193,10 @@ export default function ChatScreen() {
         role: "assistant",
         content: data.reply,
       };
-      setMessages((prev) => [...prev, assistantMsg]);
+
+      const finalMsgs = [...current, assistantMsg];
+      setMessages(finalMsgs);
+      autoSave(finalMsgs);
     } catch {
       const errMsg: Message = {
         id: uid(),
@@ -150,10 +207,14 @@ export default function ChatScreen() {
     } finally {
       setLoading(false);
     }
-  }, [input, loading, messages, character.id, buildUserContext]);
+  }, [input, loading, messages, character.id, buildUserContext, autoSave]);
 
   const topPad = Platform.OS === "web" ? 67 : insets.top;
   const bottomPad = Platform.OS === "web" ? 34 + insets.bottom : insets.bottom;
+
+  const charConversations = conversations.filter(
+    (c) => c.characterId === character.id
+  );
 
   return (
     <View style={[styles.container, { backgroundColor: colors.background }]}>
@@ -180,10 +241,28 @@ export default function ChatScreen() {
             {character.role}
           </Text>
         </View>
+        <Pressable
+          onPress={() => setSidebarOpen(true)}
+          style={styles.historyBtn}
+          hitSlop={8}
+        >
+          <Feather name="clock" size={20} color={colors.foreground} />
+          {charConversations.length > 0 && (
+            <View style={[styles.historyBadge, { backgroundColor: character.color }]}>
+              <Text style={styles.historyBadgeText}>
+                {charConversations.length > 9 ? "9+" : charConversations.length}
+              </Text>
+            </View>
+          )}
+        </Pressable>
         <View style={[styles.onlineDot, { backgroundColor: character.color }]} />
       </View>
 
-      <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding" keyboardVerticalOffset={0}>
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior="padding"
+        keyboardVerticalOffset={0}
+      >
         <FlatList
           ref={flatRef}
           data={[...messages].reverse()}
@@ -258,6 +337,22 @@ export default function ChatScreen() {
           </Pressable>
         </View>
       </KeyboardAvoidingView>
+
+      {/* Conversation Sidebar */}
+      <ConversationSidebar
+        visible={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
+        characterId={character.id}
+        characterName={character.name}
+        characterColor={character.color}
+        characterBgColor={character.bgColor}
+        conversations={conversations}
+        activeConvId={convIdRef.current}
+        onNewChat={startNewChat}
+        onLoadConversation={loadConversation}
+        onRename={renameConversation}
+        onDelete={deleteConversation}
+      />
     </View>
   );
 }
@@ -290,10 +385,7 @@ function MessageBubble({
         ]}
       >
         <Text
-          style={[
-            styles.bubbleText,
-            { color: isUser ? "#fff" : colors.foreground },
-          ]}
+          style={[styles.bubbleText, { color: isUser ? "#fff" : colors.foreground }]}
         >
           {msg.content}
         </Text>
@@ -329,6 +421,26 @@ const styles = StyleSheet.create({
   headerInfo: { flex: 1 },
   headerName: { fontSize: 16, fontWeight: "700" },
   headerRole: { fontSize: 12, fontWeight: "500" },
+  historyBtn: {
+    padding: 4,
+    position: "relative",
+  },
+  historyBadge: {
+    position: "absolute",
+    top: -2,
+    right: -2,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 3,
+  },
+  historyBadgeText: {
+    fontSize: 9,
+    fontWeight: "700",
+    color: "#fff",
+  },
   onlineDot: { width: 8, height: 8, borderRadius: 4 },
   msgRow: { flexDirection: "row", gap: 8, alignItems: "flex-end" },
   msgRowUser: { flexDirection: "row-reverse" },

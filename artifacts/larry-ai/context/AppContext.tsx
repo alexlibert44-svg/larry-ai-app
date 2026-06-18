@@ -26,6 +26,21 @@ export interface Habit {
   lastChecked: number | null;
 }
 
+export interface ChatMessage {
+  id: string;
+  role: "user" | "assistant";
+  content: string;
+}
+
+export interface SavedConversation {
+  id: string;
+  characterId: string;
+  title: string;
+  messages: ChatMessage[];
+  createdAt: number;
+  updatedAt: number;
+}
+
 interface AppState {
   tasks: Task[];
   habits: Habit[];
@@ -48,11 +63,16 @@ interface AppContextType extends AppState {
   setActiveCharacter: (id: CharacterId) => void;
   setUserName: (name: string) => void;
   setUserAvatar: (uri: string | null) => void;
+  conversations: SavedConversation[];
+  saveConversation: (conv: SavedConversation) => void;
+  deleteConversation: (id: string) => void;
+  renameConversation: (id: string, title: string) => void;
 }
 
 export const AppContext = createContext<AppContextType | null>(null);
 
 const STORAGE_KEY = "@larryai_state";
+const CONV_STORAGE_KEY = "@larryai_conversations";
 
 const defaultState: AppState = {
   tasks: [],
@@ -77,7 +97,10 @@ function todayString(): string {
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<AppState>(defaultState);
   const [loaded, setLoaded] = useState(false);
+  const [conversations, setConversations] = useState<SavedConversation[]>([]);
+  const [convsLoaded, setConvsLoaded] = useState(false);
 
+  // Load main state
   useEffect(() => {
     AsyncStorage.getItem(STORAGE_KEY).then((raw) => {
       if (raw) {
@@ -111,11 +134,33 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     });
   }, []);
 
+  // Load conversations
+  useEffect(() => {
+    AsyncStorage.getItem(CONV_STORAGE_KEY).then((raw) => {
+      if (raw) {
+        try {
+          setConversations(JSON.parse(raw) as SavedConversation[]);
+        } catch {
+          setConversations([]);
+        }
+      }
+      setConvsLoaded(true);
+    });
+  }, []);
+
+  // Persist main state
   useEffect(() => {
     if (loaded) {
       AsyncStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     }
   }, [state, loaded]);
+
+  // Persist conversations
+  useEffect(() => {
+    if (convsLoaded) {
+      AsyncStorage.setItem(CONV_STORAGE_KEY, JSON.stringify(conversations));
+    }
+  }, [conversations, convsLoaded]);
 
   const computeStage = (xp: number) => {
     if (xp >= 500) return 4;
@@ -129,9 +174,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const newXp = currentState.xp + amount;
       const today = todayString();
       const wasToday = currentState.lastActiveDate === today;
-      const newStreak = wasToday
-        ? currentState.streak
-        : currentState.streak + 1;
+      const newStreak = wasToday ? currentState.streak : currentState.streak + 1;
       return {
         ...currentState,
         xp: newXp,
@@ -143,24 +186,21 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     []
   );
 
-  const addTask = useCallback(
-    (title: string, characterId: CharacterId) => {
-      setState((prev) => ({
-        ...prev,
-        tasks: [
-          {
-            id: uid(),
-            title,
-            characterId,
-            completed: false,
-            createdAt: Date.now(),
-          },
-          ...prev.tasks,
-        ],
-      }));
-    },
-    []
-  );
+  const addTask = useCallback((title: string, characterId: CharacterId) => {
+    setState((prev) => ({
+      ...prev,
+      tasks: [
+        {
+          id: uid(),
+          title,
+          characterId,
+          completed: false,
+          createdAt: Date.now(),
+        },
+        ...prev.tasks,
+      ],
+    }));
+  }, []);
 
   const completeTask = useCallback(
     (id: string) => {
@@ -209,8 +249,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         const habits = prev.habits.map((h) => {
           if (h.id !== id) return h;
           const dayMs = 86400000;
-          const alreadyToday =
-            h.lastChecked !== null && today - h.lastChecked < dayMs;
+          const alreadyToday = h.lastChecked !== null && today - h.lastChecked < dayMs;
           if (alreadyToday) return h;
           return { ...h, streak: h.streak + 1, lastChecked: today };
         });
@@ -239,6 +278,32 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setState((prev) => ({ ...prev, userAvatar: uri }));
   }, []);
 
+  const saveConversation = useCallback((conv: SavedConversation) => {
+    setConversations((prev) => {
+      const idx = prev.findIndex((c) => c.id === conv.id);
+      if (idx >= 0) {
+        const updated = [...prev];
+        updated[idx] = {
+          ...updated[idx],
+          messages: conv.messages,
+          updatedAt: conv.updatedAt,
+        };
+        return updated;
+      }
+      return [conv, ...prev];
+    });
+  }, []);
+
+  const deleteConversation = useCallback((id: string) => {
+    setConversations((prev) => prev.filter((c) => c.id !== id));
+  }, []);
+
+  const renameConversation = useCallback((id: string, title: string) => {
+    setConversations((prev) =>
+      prev.map((c) => (c.id === id ? { ...c, title: title.trim() || c.title } : c))
+    );
+  }, []);
+
   if (!loaded) return null;
 
   return (
@@ -254,6 +319,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         setActiveCharacter,
         setUserName,
         setUserAvatar,
+        conversations,
+        saveConversation,
+        deleteConversation,
+        renameConversation,
       }}
     >
       {children}
