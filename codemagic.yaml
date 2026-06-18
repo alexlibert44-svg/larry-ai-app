@@ -6,7 +6,7 @@ workflows:
   # ─────────────────────────────────────────────────────────────
   android-debug:
     name: Larry AI – Android Debug APK
-    instance_type: linux_x2
+    instance_type: linux_x86_64
     max_build_duration: 60
 
     environment:
@@ -97,7 +97,7 @@ workflows:
   # ─────────────────────────────────────────────────────────────
   android-release:
     name: Larry AI – Android Release APK (Signed)
-    instance_type: linux_x2
+    instance_type: linux_x86_64
     max_build_duration: 60
 
     environment:
