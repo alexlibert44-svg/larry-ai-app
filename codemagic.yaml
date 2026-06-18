@@ -2,11 +2,11 @@ workflows:
 
   # ─────────────────────────────────────────────────────────────
   # WORKFLOW 1 – Debug APK (no signing required, fastest to run)
-  # Instance: standard Linux (free tier)
+  # Instance: linux — free tier standard machine
   # ─────────────────────────────────────────────────────────────
   android-debug:
     name: Larry AI – Android Debug APK
-    instance_type: linux_x86_64
+    instance_type: linux
     max_build_duration: 60
 
     environment:
@@ -81,7 +81,7 @@ workflows:
 
   # ─────────────────────────────────────────────────────────────
   # WORKFLOW 2 – Release APK (signed, ready for distribution)
-  # Instance: standard Linux (free tier)
+  # Instance: linux — free tier standard machine
   #
   # Secrets to add in Codemagic → App Settings → Environment variables:
   #   CM_KEYSTORE        — base64-encoded .jks keystore file
@@ -97,7 +97,7 @@ workflows:
   # ─────────────────────────────────────────────────────────────
   android-release:
     name: Larry AI – Android Release APK (Signed)
-    instance_type: linux_x86_64
+    instance_type: linux
     max_build_duration: 60
 
     environment:
