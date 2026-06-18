@@ -1,0 +1,78 @@
+workflows:
+  android-apk:
+    name: Larry AI – Android APK
+    instance_type: linux_x2
+    max_build_duration: 60
+
+    environment:
+      java: 17
+      node: 20
+      vars:
+        # Replace with your actual API server domain (the Replit dev domain or deployed URL)
+        EXPO_PUBLIC_DOMAIN: "your-api-server.replit.dev"
+        EXPO_PUBLIC_REPL_ID: "placeholder"
+        EXPO_NO_INTERACTION: "1"
+        # Increase heap for React Native New Architecture build
+        GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g -Dorg.gradle.daemon=false -Dorg.gradle.parallel=false"
+
+    cache:
+      cache_paths:
+        - $HOME/.pnpm-store
+
+    scripts:
+      - name: Enable pnpm via corepack
+        script: |
+          corepack enable || npm install -g pnpm@latest
+          pnpm --version
+
+      - name: Configure pnpm cache directory
+        script: |
+          pnpm config set store-dir $HOME/.pnpm-store
+
+      - name: Install all workspace dependencies
+        script: |
+          pnpm install --frozen-lockfile
+
+      - name: Inject Android package name into app.json
+        # expo prebuild requires android.package to be defined;
+        # this sets it at build time without modifying the committed file permanently.
+        script: |
+          python3 - << 'EOF'
+          import json
+
+          path = "artifacts/larry-ai/app.json"
+          with open(path) as f:
+              cfg = json.load(f)
+
+          android = cfg["expo"].setdefault("android", {})
+          if "package" not in android:
+              android["package"] = "com.larryai.app"
+              with open(path, "w") as f:
+                  json.dump(cfg, f, indent=2)
+              print("Set android.package = com.larryai.app")
+          else:
+              print("android.package already defined:", android["package"])
+          EOF
+
+      - name: Generate native Android project via Expo prebuild
+        working_directory: artifacts/larry-ai
+        script: |
+          npx expo prebuild --platform android --clean --no-install
+
+      - name: Build Android APK
+        working_directory: artifacts/larry-ai/android
+        script: |
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon --stacktrace
+
+    artifacts:
+      - artifacts/larry-ai/android/app/build/outputs/apk/debug/app-debug.apk
+      - artifacts/larry-ai/android/app/build/outputs/logs/**
+
+    publishing:
+      email:
+        recipients:
+          - your@email.com
+        notify:
+          success: true
+          failure: true
