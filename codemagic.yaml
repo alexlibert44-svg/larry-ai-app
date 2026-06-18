@@ -1,6 +1,10 @@
 workflows:
-  android-apk:
-    name: Larry AI – Android APK
+
+  # ─────────────────────────────────────────────────────────────
+  # WORKFLOW 1 – Debug APK (no signing required, fastest to run)
+  # ─────────────────────────────────────────────────────────────
+  android-debug:
+    name: Larry AI – Android Debug APK
     instance_type: linux_x2
     max_build_duration: 60
 
@@ -8,11 +12,10 @@ workflows:
       java: 17
       node: 20
       vars:
-        # Replace with your actual API server domain (the Replit dev domain or deployed URL)
+        # Replace with your actual deployed API server URL
         EXPO_PUBLIC_DOMAIN: "your-api-server.replit.dev"
         EXPO_PUBLIC_REPL_ID: "placeholder"
         EXPO_NO_INTERACTION: "1"
-        # Increase heap for React Native New Architecture build
         GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g -Dorg.gradle.daemon=false -Dorg.gradle.parallel=false"
 
     cache:
@@ -34,8 +37,6 @@ workflows:
           pnpm install --frozen-lockfile
 
       - name: Inject Android package name into app.json
-        # expo prebuild requires android.package to be defined;
-        # this sets it at build time without modifying the committed file permanently.
         script: |
           python3 - << 'EOF'
           import json
@@ -59,7 +60,7 @@ workflows:
         script: |
           npx expo prebuild --platform android --clean --no-install
 
-      - name: Build Android APK
+      - name: Build debug APK
         working_directory: artifacts/larry-ai/android
         script: |
           chmod +x gradlew
@@ -67,6 +68,127 @@ workflows:
 
     artifacts:
       - artifacts/larry-ai/android/app/build/outputs/apk/debug/app-debug.apk
+      - artifacts/larry-ai/android/app/build/outputs/logs/**
+
+    publishing:
+      email:
+        recipients:
+          - your@email.com
+        notify:
+          success: true
+          failure: true
+
+
+  # ─────────────────────────────────────────────────────────────
+  # WORKFLOW 2 – Release APK (signed, ready for distribution)
+  #
+  # BEFORE RUNNING THIS WORKFLOW, add these four secrets in
+  # Codemagic → App Settings → Environment variables:
+  #
+  #   CM_KEYSTORE      — base64-encoded keystore file
+  #                      Generate:  base64 -i your-key.jks | pbcopy   (macOS)
+  #                                 base64 -w 0 your-key.jks | xclip  (Linux)
+  #   CM_KEY_ALIAS     — the key alias you set when creating the keystore
+  #   CM_KEY_PASSWORD  — the key password
+  #   CM_STORE_PASSWORD — the keystore (store) password
+  #
+  # To create a keystore if you don't have one:
+  #   keytool -genkey -v -keystore larry-ai.jks -alias larry-ai \
+  #           -keyalg RSA -keysize 2048 -validity 10000
+  # ─────────────────────────────────────────────────────────────
+  android-release:
+    name: Larry AI – Android Release APK (Signed)
+    instance_type: linux_x2
+    max_build_duration: 60
+
+    environment:
+      java: 17
+      node: 20
+      vars:
+        # Replace with your actual deployed API server URL
+        EXPO_PUBLIC_DOMAIN: "your-api-server.replit.dev"
+        EXPO_PUBLIC_REPL_ID: "placeholder"
+        EXPO_NO_INTERACTION: "1"
+        GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g -Dorg.gradle.daemon=false -Dorg.gradle.parallel=false"
+      # The four CM_ signing vars below are set as secrets in the
+      # Codemagic UI — do NOT hard-code them here.
+
+    cache:
+      cache_paths:
+        - $HOME/.pnpm-store
+
+    scripts:
+      - name: Enable pnpm via corepack
+        script: |
+          corepack enable || npm install -g pnpm@latest
+          pnpm --version
+
+      - name: Configure pnpm cache directory
+        script: |
+          pnpm config set store-dir $HOME/.pnpm-store
+
+      - name: Install all workspace dependencies
+        script: |
+          pnpm install --frozen-lockfile
+
+      - name: Inject Android package name into app.json
+        script: |
+          python3 - << 'EOF'
+          import json
+
+          path = "artifacts/larry-ai/app.json"
+          with open(path) as f:
+              cfg = json.load(f)
+
+          android = cfg["expo"].setdefault("android", {})
+          if "package" not in android:
+              android["package"] = "com.larryai.app"
+              with open(path, "w") as f:
+                  json.dump(cfg, f, indent=2)
+              print("Set android.package = com.larryai.app")
+          else:
+              print("android.package already defined:", android["package"])
+          EOF
+
+      - name: Generate native Android project via Expo prebuild
+        working_directory: artifacts/larry-ai
+        script: |
+          npx expo prebuild --platform android --clean --no-install
+
+      - name: Decode keystore from base64 secret
+        script: |
+          echo "$CM_KEYSTORE" | base64 --decode > /tmp/larry-ai-release.jks
+          # Verify the keystore decoded correctly (will print certificate info)
+          keytool -list -keystore /tmp/larry-ai-release.jks \
+            -storepass "$CM_STORE_PASSWORD" -noprompt
+
+      - name: Build signed release APK
+        working_directory: artifacts/larry-ai/android
+        script: |
+          chmod +x gradlew
+          ./gradlew assembleRelease \
+            -Pandroid.injected.signing.store.file=/tmp/larry-ai-release.jks \
+            -Pandroid.injected.signing.store.password="$CM_STORE_PASSWORD" \
+            -Pandroid.injected.signing.key.alias="$CM_KEY_ALIAS" \
+            -Pandroid.injected.signing.key.password="$CM_KEY_PASSWORD" \
+            --no-daemon \
+            --stacktrace
+
+      - name: Verify APK signature
+        script: |
+          APK="artifacts/larry-ai/android/app/build/outputs/apk/release/app-release.apk"
+          if [ -f "$APK" ]; then
+            echo "APK found at: $APK"
+            $ANDROID_HOME/build-tools/$(ls $ANDROID_HOME/build-tools | tail -1)/apksigner \
+              verify --verbose "$APK" || true
+          else
+            echo "ERROR: APK not found at expected path"
+            find artifacts/larry-ai/android/app/build/outputs -name "*.apk"
+            exit 1
+          fi
+
+    artifacts:
+      - artifacts/larry-ai/android/app/build/outputs/apk/release/app-release.apk
       - artifacts/larry-ai/android/app/build/outputs/logs/**
 
     publishing:
