@@ -82,17 +82,15 @@ workflows:
   # ─────────────────────────────────────────────────────────────
   # WORKFLOW 2 – Release APK (signed, ready for distribution)
   #
-  # BEFORE RUNNING THIS WORKFLOW, add these four secrets in
-  # Codemagic → App Settings → Environment variables:
+  # Secrets to add in Codemagic → App Settings → Environment variables:
+  #   CM_KEYSTORE        — base64-encoded .jks keystore file
+  #                        macOS:  base64 -i your-key.jks | pbcopy
+  #                        Linux:  base64 -w 0 your-key.jks | xclip
+  #   CM_KEY_ALIAS       — key alias chosen when creating the keystore
+  #   CM_KEY_PASSWORD    — key password
+  #   CM_STORE_PASSWORD  — keystore/store password
   #
-  #   CM_KEYSTORE      — base64-encoded keystore file
-  #                      Generate:  base64 -i your-key.jks | pbcopy   (macOS)
-  #                                 base64 -w 0 your-key.jks | xclip  (Linux)
-  #   CM_KEY_ALIAS     — the key alias you set when creating the keystore
-  #   CM_KEY_PASSWORD  — the key password
-  #   CM_STORE_PASSWORD — the keystore (store) password
-  #
-  # To create a keystore if you don't have one:
+  # Create a keystore (if you don't have one):
   #   keytool -genkey -v -keystore larry-ai.jks -alias larry-ai \
   #           -keyalg RSA -keysize 2048 -validity 10000
   # ─────────────────────────────────────────────────────────────
@@ -105,13 +103,10 @@ workflows:
       java: 17
       node: 20
       vars:
-        # Replace with your actual deployed API server URL
         EXPO_PUBLIC_DOMAIN: "your-api-server.replit.dev"
         EXPO_PUBLIC_REPL_ID: "placeholder"
         EXPO_NO_INTERACTION: "1"
         GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx4g -Dorg.gradle.daemon=false -Dorg.gradle.parallel=false"
-      # The four CM_ signing vars below are set as secrets in the
-      # Codemagic UI — do NOT hard-code them here.
 
     cache:
       cache_paths:
@@ -155,10 +150,9 @@ workflows:
         script: |
           npx expo prebuild --platform android --clean --no-install
 
-      - name: Decode keystore from base64 secret
+      - name: Decode keystore and verify
         script: |
           echo "$CM_KEYSTORE" | base64 --decode > /tmp/larry-ai-release.jks
-          # Verify the keystore decoded correctly (will print certificate info)
           keytool -list -keystore /tmp/larry-ai-release.jks \
             -storepass "$CM_STORE_PASSWORD" -noprompt
 
@@ -178,11 +172,11 @@ workflows:
         script: |
           APK="artifacts/larry-ai/android/app/build/outputs/apk/release/app-release.apk"
           if [ -f "$APK" ]; then
-            echo "APK found at: $APK"
+            echo "APK found: $APK"
             $ANDROID_HOME/build-tools/$(ls $ANDROID_HOME/build-tools | tail -1)/apksigner \
               verify --verbose "$APK" || true
           else
-            echo "ERROR: APK not found at expected path"
+            echo "ERROR: APK not found – searching for output:"
             find artifacts/larry-ai/android/app/build/outputs -name "*.apk"
             exit 1
           fi
@@ -190,6 +184,234 @@ workflows:
     artifacts:
       - artifacts/larry-ai/android/app/build/outputs/apk/release/app-release.apk
       - artifacts/larry-ai/android/app/build/outputs/logs/**
+
+    publishing:
+      email:
+        recipients:
+          - your@email.com
+        notify:
+          success: true
+          failure: true
+
+
+  # ─────────────────────────────────────────────────────────────
+  # WORKFLOW 3 – iOS IPA (Ad Hoc — installable on registered devices)
+  #
+  # Secrets to add in Codemagic → App Settings → Environment variables:
+  #
+  #   CM_CERTIFICATE          — base64-encoded .p12 distribution certificate
+  #                             macOS:  base64 -i YourCert.p12 | pbcopy
+  #                             Linux:  base64 -w 0 YourCert.p12 | xclip
+  #   CM_CERTIFICATE_PASSWORD — export password for the .p12
+  #   CM_PROVISIONING_PROFILE — base64-encoded Ad Hoc .mobileprovision file
+  #                             macOS:  base64 -i YourProfile.mobileprovision | pbcopy
+  #   APPLE_TEAM_ID           — your 10-character Apple Developer Team ID
+  #                             (found at developer.apple.com → Membership)
+  #
+  # How to get the certificate and profile:
+  #   1. In Xcode → Settings → Accounts → Manage Certificates
+  #      create an "Apple Distribution" certificate, then export as .p12
+  #   2. On developer.apple.com → Profiles → create an Ad Hoc profile
+  #      for bundle ID com.larryai.app, download the .mobileprovision
+  #
+  # To distribute the IPA after the build:
+  #   - Upload to TestFlight (change method to "app-store" below)
+  #   - Use Diawi, Firebase App Distribution, or share the IPA link directly
+  # ─────────────────────────────────────────────────────────────
+  ios-adhoc:
+    name: Larry AI – iOS IPA (Ad Hoc)
+    instance_type: mac_mini_m2
+    max_build_duration: 90
+
+    environment:
+      xcode: latest
+      node: 20
+      vars:
+        EXPO_PUBLIC_DOMAIN: "your-api-server.replit.dev"
+        EXPO_PUBLIC_REPL_ID: "placeholder"
+        EXPO_NO_INTERACTION: "1"
+        IOS_BUNDLE_ID: "com.larryai.app"
+        ARCHIVE_PATH: "/tmp/larry-ai.xcarchive"
+        IPA_OUTPUT_DIR: "/tmp/ipa"
+
+    cache:
+      cache_paths:
+        - $HOME/.pnpm-store
+        - $HOME/Library/Caches/CocoaPods
+
+    scripts:
+      - name: Enable pnpm via corepack
+        script: |
+          corepack enable || npm install -g pnpm@latest
+          pnpm --version
+
+      - name: Configure pnpm cache directory
+        script: |
+          pnpm config set store-dir $HOME/.pnpm-store
+
+      - name: Install all workspace dependencies
+        script: |
+          pnpm install --frozen-lockfile
+
+      - name: Inject bundle identifier and package name into app.json
+        script: |
+          python3 - << 'EOF'
+          import json
+
+          path = "artifacts/larry-ai/app.json"
+          with open(path) as f:
+              cfg = json.load(f)
+
+          ios = cfg["expo"].setdefault("ios", {})
+          android = cfg["expo"].setdefault("android", {})
+
+          changed = False
+          if "bundleIdentifier" not in ios:
+              ios["bundleIdentifier"] = "com.larryai.app"
+              print("Set ios.bundleIdentifier = com.larryai.app")
+              changed = True
+          else:
+              print("ios.bundleIdentifier already defined:", ios["bundleIdentifier"])
+
+          if "package" not in android:
+              android["package"] = "com.larryai.app"
+              print("Set android.package = com.larryai.app")
+              changed = True
+          else:
+              print("android.package already defined:", android["package"])
+
+          if changed:
+              with open(path, "w") as f:
+                  json.dump(cfg, f, indent=2)
+          EOF
+
+      - name: Generate native iOS project via Expo prebuild
+        working_directory: artifacts/larry-ai
+        script: |
+          npx expo prebuild --platform ios --clean --no-install
+
+      - name: Install CocoaPods dependencies
+        working_directory: artifacts/larry-ai/ios
+        script: |
+          pod install
+
+      - name: Set up signing keychain
+        script: |
+          KEYCHAIN_PATH=$HOME/Library/Keychains/ios-build.keychain-db
+
+          # Create and configure a dedicated build keychain
+          security create-keychain -p "" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "" "$KEYCHAIN_PATH"
+
+          # Add to keychain search list without removing existing entries
+          security list-keychains -d user -s "$KEYCHAIN_PATH" \
+            $(security list-keychains -d user | tr -d '"')
+
+          # Import the distribution certificate
+          echo "$CM_CERTIFICATE" | base64 --decode > /tmp/distribution.p12
+          security import /tmp/distribution.p12 \
+            -k "$KEYCHAIN_PATH" \
+            -P "$CM_CERTIFICATE_PASSWORD" \
+            -T /usr/bin/codesign \
+            -T /usr/bin/productbuild
+          security set-key-partition-list \
+            -S apple-tool:,apple:,codesign: -s -k "" "$KEYCHAIN_PATH"
+
+          # Install provisioning profile and capture its UUID
+          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+          echo "$CM_PROVISIONING_PROFILE" | base64 --decode > /tmp/profile.mobileprovision
+          PROFILE_UUID=$(python3 -c "
+          import plistlib, re
+          with open('/tmp/profile.mobileprovision', 'rb') as f:
+              data = f.read()
+          match = re.search(b'<plist.*?</plist>', data, re.DOTALL)
+          plist = plistlib.loads(match.group(0))
+          print(plist['UUID'])
+          ")
+          cp /tmp/profile.mobileprovision \
+            ~/Library/MobileDevice/Provisioning\ Profiles/"$PROFILE_UUID".mobileprovision
+          echo "Installed provisioning profile UUID: $PROFILE_UUID"
+          echo "PROFILE_UUID=$PROFILE_UUID" >> $CM_ENV
+
+      - name: Discover Xcode workspace and scheme
+        script: |
+          WORKSPACE=$(find artifacts/larry-ai/ios -maxdepth 1 -name "*.xcworkspace" | head -1)
+          SCHEME=$(xcodebuild -list -workspace "$WORKSPACE" 2>/dev/null | \
+            awk '/Schemes:/{found=1; next} found && /^\s+\S/{print $1; exit}')
+          echo "WORKSPACE=$WORKSPACE" >> $CM_ENV
+          echo "SCHEME=$SCHEME" >> $CM_ENV
+          echo "Workspace: $WORKSPACE"
+          echo "Scheme:    $SCHEME"
+
+      - name: Archive iOS app
+        script: |
+          set -o pipefail
+          xcodebuild \
+            -workspace "$WORKSPACE" \
+            -scheme "$SCHEME" \
+            -configuration Release \
+            -destination "generic/platform=iOS" \
+            -archivePath "$ARCHIVE_PATH" \
+            CODE_SIGN_STYLE="Manual" \
+            CODE_SIGN_IDENTITY="iPhone Distribution" \
+            PROVISIONING_PROFILE="$PROFILE_UUID" \
+            archive \
+            | xcpretty --color
+
+      - name: Generate ExportOptions.plist
+        script: |
+          cat > /tmp/ExportOptions.plist << PLIST
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN"
+            "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+              <key>method</key>
+              <string>ad-hoc</string>
+              <key>teamID</key>
+              <string>${APPLE_TEAM_ID}</string>
+              <key>signingStyle</key>
+              <string>manual</string>
+              <key>provisioningProfiles</key>
+              <dict>
+                  <key>${IOS_BUNDLE_ID}</key>
+                  <string>${PROFILE_UUID}</string>
+              </dict>
+              <key>stripSwiftSymbols</key>
+              <true/>
+              <key>compileBitcode</key>
+              <false/>
+              <key>uploadSymbols</key>
+              <false/>
+          </dict>
+          </plist>
+          PLIST
+          echo "ExportOptions.plist:"
+          cat /tmp/ExportOptions.plist
+
+      - name: Export IPA
+        script: |
+          set -o pipefail
+          mkdir -p "$IPA_OUTPUT_DIR"
+          xcodebuild \
+            -exportArchive \
+            -archivePath "$ARCHIVE_PATH" \
+            -exportOptionsPlist /tmp/ExportOptions.plist \
+            -exportPath "$IPA_OUTPUT_DIR" \
+            | xcpretty --color
+
+          IPA=$(find "$IPA_OUTPUT_DIR" -name "*.ipa" | head -1)
+          if [ -z "$IPA" ]; then
+            echo "ERROR: No IPA found in $IPA_OUTPUT_DIR"
+            ls -la "$IPA_OUTPUT_DIR"
+            exit 1
+          fi
+          echo "IPA exported successfully: $IPA"
+
+    artifacts:
+      - /tmp/ipa/*.ipa
+      - /tmp/larry-ai.xcarchive/dSYMs/**
 
     publishing:
       email:
