@@ -40,13 +40,97 @@ const FALLBACK_RESPONSES: Record<string, string[]> = {
   ],
 };
 
-router.post("/", async (req, res) => {
-  const { characterId, messages } = req.body as {
-    characterId: string;
-    messages: Array<{ role: string; content: string }>;
+interface UserContext {
+  userName: string;
+  xp: number;
+  streak: number;
+  stage: number;
+  successPct: number;
+  todayTasksTotal: number;
+  todayTasksCompleted: number;
+  pendingTasksToday: string[];
+  completedTasksToday: string[];
+  allPendingTasks: string[];
+  totalHabits: number;
+  habitsCheckedToday: number;
+  habitsMissedToday: { cue: string; replace: string; with: string; streak: number }[];
+  habitsOnStreak: { replace: string; streak: number }[];
+}
+
+function buildContextBlock(ctx: UserContext, characterId: string): string {
+  const stageLabels = ["", "Beginner", "Developing", "Advanced", "Master"];
+  const stageLabel = stageLabels[ctx.stage] ?? "Beginner";
+
+  const lines: string[] = [
+    `\n\n--- USER DATA (use this to personalize your response) ---`,
+    `Name: ${ctx.userName}`,
+    `XP: ${ctx.xp} | Streak: ${ctx.streak} day${ctx.streak !== 1 ? "s" : ""} | Stage: ${stageLabel} (${ctx.stage}/4)`,
+    `Today's success index: ${ctx.successPct}% (${ctx.todayTasksCompleted}/${ctx.todayTasksTotal} tasks done, ${ctx.habitsCheckedToday}/${ctx.totalHabits} habits checked)`,
+  ];
+
+  if (ctx.pendingTasksToday.length > 0) {
+    lines.push(`Pending tasks today: ${ctx.pendingTasksToday.join(", ")}`);
+  } else if (ctx.todayTasksTotal === 0) {
+    lines.push(`No tasks added today yet.`);
+  } else {
+    lines.push(`All tasks completed today — great execution!`);
+  }
+
+  if (ctx.completedTasksToday.length > 0) {
+    lines.push(`Completed today: ${ctx.completedTasksToday.join(", ")}`);
+  }
+
+  if (ctx.allPendingTasks.length > 0 && ctx.pendingTasksToday.length === 0) {
+    lines.push(`Older pending tasks: ${ctx.allPendingTasks.join(", ")}`);
+  }
+
+  if (ctx.habitsOnStreak.length > 0) {
+    const streaks = ctx.habitsOnStreak
+      .map((h) => `"${h.replace}" (${h.streak}d streak)`)
+      .join(", ");
+    lines.push(`Habits checked today: ${streaks}`);
+  }
+
+  if (ctx.habitsMissedToday.length > 0) {
+    const missed = ctx.habitsMissedToday
+      .map((h) => `"${h.replace}" (trigger: ${h.cue}, streak: ${h.streak}d)`)
+      .join(", ");
+    lines.push(`Habits NOT checked today: ${missed}`);
+  }
+
+  if (ctx.totalHabits === 0) {
+    lines.push(`No habits set up yet.`);
+  }
+
+  // Character-specific guidance on how to use the data
+  const guidance: Record<string, string> = {
+    larry:
+      "Use this data to call out what's not done, push the user to complete pending tasks, acknowledge wins, and hold them accountable with direct language.",
+    sensei:
+      "Use this data to reflect on patterns, question what's blocking progress, and offer wisdom about the user's journey and habits.",
+    "dr-neo":
+      "Analyze the habit patterns and task completion data as behavioral evidence. Reference specific habits and their triggers to explain the user's behavior loops.",
+    hassan:
+      "Use the habit and task data to recommend physical actions that directly replace the missed habits or support the pending tasks with energy and movement.",
   };
 
-  const systemPrompt = CHARACTER_PROMPTS[characterId] ?? CHARACTER_PROMPTS.larry;
+  lines.push(`\nYour role with this data: ${guidance[characterId] ?? guidance.larry}`);
+  lines.push(`--- END USER DATA ---`);
+
+  return lines.join("\n");
+}
+
+router.post("/", async (req, res) => {
+  const { characterId, messages, userContext } = req.body as {
+    characterId: string;
+    messages: Array<{ role: string; content: string }>;
+    userContext?: UserContext;
+  };
+
+  const basePrompt = CHARACTER_PROMPTS[characterId] ?? CHARACTER_PROMPTS.larry;
+  const contextBlock = userContext ? buildContextBlock(userContext, characterId) : "";
+  const systemPrompt = basePrompt + contextBlock;
+
   const apiKey = process.env["GEMINI_API_KEY"];
 
   if (apiKey) {
@@ -67,7 +151,7 @@ router.post("/", async (req, res) => {
             },
             contents: geminiMessages,
             generationConfig: {
-              maxOutputTokens: 256,
+              maxOutputTokens: 300,
               temperature: 0.9,
             },
           }),
@@ -80,7 +164,7 @@ router.post("/", async (req, res) => {
             content: { parts: Array<{ text: string }> };
           }>;
         };
-        const reply = data.candidates?.[0]?.content?.parts?.[0]?.text ?? "...";
+        const reply = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim() ?? "...";
         res.json({ reply });
         return;
       } else {
