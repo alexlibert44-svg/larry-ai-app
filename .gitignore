@@ -47,3 +47,6 @@ Thumbs.db
 # Replit
 .cache/
 .local/
+
+# pnpm lockfile — not committed; EAS and Codemagic run pnpm install fresh
+pnpm-lock.yaml

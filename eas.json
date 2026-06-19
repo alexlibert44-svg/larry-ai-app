@@ -4,23 +4,10 @@
     "appVersionSource": "local"
   },
   "build": {
-    "development": {
-      "developmentClient": true,
-      "distribution": "internal",
-      "android": {
-        "buildType": "apk"
-      },
-      "env": {
-        "EXPO_NO_TELEMETRY": "1"
-      }
-    },
     "preview": {
       "distribution": "internal",
       "android": {
         "buildType": "apk"
-      },
-      "ios": {
-        "simulator": true
       },
       "env": {
         "EXPO_NO_TELEMETRY": "1"
