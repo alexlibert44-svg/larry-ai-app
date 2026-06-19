@@ -10,16 +10,20 @@
         "buildType": "apk"
       },
       "env": {
-        "EXPO_NO_TELEMETRY": "1"
-      }
+        "EXPO_NO_TELEMETRY": "1",
+        "NPM_CONFIG_FUND": "false"
+      },
+      "installCommand": "pnpm install --no-frozen-lockfile"
     },
     "production": {
       "android": {
         "buildType": "apk"
       },
       "env": {
-        "EXPO_NO_TELEMETRY": "1"
-      }
+        "EXPO_NO_TELEMETRY": "1",
+        "NPM_CONFIG_FUND": "false"
+      },
+      "installCommand": "pnpm install --no-frozen-lockfile"
     }
   },
   "submit": {
