@@ -25,7 +25,8 @@ workflows:
     scripts:
       - name: Enable pnpm via corepack
         script: |
-          corepack enable || npm install -g pnpm@latest
+          corepack enable || npm install -g pnpm@10.26.1
+          corepack prepare pnpm@10.26.1 --activate || true
           pnpm --version
 
       - name: Configure pnpm cache directory
@@ -34,7 +35,7 @@ workflows:
 
       - name: Install all workspace dependencies
         script: |
-          pnpm install --frozen-lockfile
+          pnpm install --no-frozen-lockfile
 
       - name: Inject Android package name into app.json
         script: |
@@ -116,7 +117,8 @@ workflows:
     scripts:
       - name: Enable pnpm via corepack
         script: |
-          corepack enable || npm install -g pnpm@latest
+          corepack enable || npm install -g pnpm@10.26.1
+          corepack prepare pnpm@10.26.1 --activate || true
           pnpm --version
 
       - name: Configure pnpm cache directory
@@ -125,7 +127,7 @@ workflows:
 
       - name: Install all workspace dependencies
         script: |
-          pnpm install --frozen-lockfile
+          pnpm install --no-frozen-lockfile
 
       - name: Inject Android package name into app.json
         script: |
