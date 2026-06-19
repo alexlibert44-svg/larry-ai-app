@@ -9,6 +9,9 @@
       "distribution": "internal",
       "android": {
         "buildType": "apk"
+      },
+      "env": {
+        "EXPO_NO_TELEMETRY": "1"
       }
     },
     "preview": {
@@ -18,11 +21,17 @@
       },
       "ios": {
         "simulator": true
+      },
+      "env": {
+        "EXPO_NO_TELEMETRY": "1"
       }
     },
     "production": {
       "android": {
         "buildType": "apk"
+      },
+      "env": {
+        "EXPO_NO_TELEMETRY": "1"
       }
     }
   },
